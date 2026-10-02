@@ -24,22 +24,33 @@ export const CapCard = ({ cap, phone, onSelectCap }) => {
         </span>
       </div>
 
-      {/* Imagen de la Gorra con Zoom Effect */}
-      <div className="relative aspect-square overflow-hidden bg-slate-950 cursor-pointer" onClick={() => onSelectCap(cap)}>
+      {/* Imagen de la Gorra Desplegada Completa con Zoom Effect */}
+      <div 
+        className="relative aspect-[4/3] w-full overflow-hidden bg-slate-950 cursor-pointer flex items-center justify-center border-b border-slate-800/60" 
+        onClick={() => onSelectCap(cap)}
+      >
+        {/* Fondo sutilmente difuminado para rellenar de forma armónica */}
+        <img
+          src={cap.imagen_url}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover blur-xl opacity-40 scale-110"
+        />
+        
+        {/* Imagen principal 100% desplegada sin recortes */}
         <img
           src={cap.imagen_url}
           alt={cap.nombre}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+          className="relative z-10 w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out"
           loading="lazy"
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
 
         {/* Hover overlay button Quick View */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -48,7 +59,7 @@ export const CapCard = ({ cap, phone, onSelectCap }) => {
             className="px-4 py-2 rounded-xl bg-white/90 hover:bg-white text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-xl transition-transform hover:scale-105"
           >
             <Eye className="w-4 h-4" />
-            <span>Ver Detalle / Formulario</span>
+            <span>Ver Imagen Completa / Pedido</span>
           </button>
         </div>
       </div>

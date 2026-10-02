@@ -54,9 +54,9 @@ function initTables() {
     db.run(`INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('whatsapp_phone', '573502522375')`);
     db.run(`INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('nombre_tienda', 'CROWN & CAP COLOMBIA')`);
 
-    // Si la base de datos no tiene los nuevos productos o se vació, sembrar con las imágenes del usuario
-    db.get('SELECT COUNT(*) as count FROM gorras', [], (err, row) => {
-      if (!err && row.count <= 5) {
+    // Si la base de datos no tiene las 5 colecciones reales (ej. Adidas Originals), limpiar viejos datos de prueba e insertar los reales
+    db.get('SELECT COUNT(*) as count FROM gorras WHERE nombre LIKE "%Adidas Originals%"', [], (err, row) => {
+      if (!err && row.count === 0) {
         console.log('📦 Actualizando catálogo con las 5 colecciones de gorras reales subidas por el usuario...');
         db.run('DELETE FROM gorras', [], () => {
           const seedGorras = [

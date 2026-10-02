@@ -40,13 +40,18 @@ export const QuickViewModal = ({ cap, phone, onClose }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2">
           
-          {/* Lado izquierdo: Foto y especificaciones */}
+          {/* Lado izquierdo: Foto desplegada completa y especificaciones */}
           <div className="relative bg-slate-950 p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
-            <div className="aspect-square rounded-2xl overflow-hidden bg-slate-900 mb-4 border border-slate-800">
+            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900 mb-4 border border-slate-800 flex items-center justify-center">
+              <img
+                src={cap.imagen_url}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover blur-xl opacity-40 scale-110"
+              />
               <img
                 src={cap.imagen_url}
                 alt={cap.nombre}
-                className="w-full h-full object-cover"
+                className="relative z-10 w-full h-full object-contain p-2"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';

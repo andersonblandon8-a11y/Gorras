@@ -1,57 +1,168 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import PublicLayout from './components/layout/PublicLayout';
-import AdminLayout from './components/layout/AdminLayout';
-import Home from './pages/public/Home';
-import Services from './pages/public/Services';
-import About from './pages/public/About';
-import Pricing from './pages/public/Pricing';
-import Promotions from './pages/public/Promotions';
-import Contact from './pages/public/Contact';
-import Login from './pages/admin/Login';
-import Dashboard from './pages/admin/Dashboard';
-import UsersManager from './pages/admin/UsersManager';
-import ResetPassword from './pages/admin/ResetPassword';
-import ServicesManager from './pages/admin/ServicesManager';
-import PlansManager from './pages/admin/PlansManager';
-import PromotionsManager from './pages/admin/PromotionsManager';
-import MessagesManager from './pages/admin/MessagesManager';
-import ProtectedRoute from './components/auth/ProtectedRoute';
+import React, { useState, useEffect, useRef } from 'react';
+import { Navbar } from './components/Navbar';
+import { HeroBanner } from './components/HeroBanner';
+import { FilterSidebar } from './components/FilterSidebar';
+import { CapGrid } from './components/CapGrid';
+import { QuickViewModal } from './components/QuickViewModal';
+import { AdminPanel } from './components/AdminPanel';
+import { Footer } from './components/Footer';
+import { fetchGorras, fetchSettings } from './services/api';
 
-function App() {
+export function App() {
+  const [gorras, setGorras] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Ajustes de la tienda (Teléfono WhatsApp)
+  const [phone, setPhone] = useState('573502522375');
+
+  // Filtros
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoria, setSelectedCategoria] = useState('Todas');
+  const [selectedColor, setSelectedColor] = useState('Todos');
+  const [selectedEstilo, setSelectedEstilo] = useState('Todos');
+  const [precioMax, setPrecioMax] = useState(200000);
+
+  // Modales
+  const [selectedCapModal, setSelectedCapModal] = useState(null);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+
+  const catalogRef = useRef(null);
+
+  // Cargar gorras y ajustes desde la base de datos SQLite
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [capsData, settingsData] = await Promise.all([
+        fetchGorras({
+          categoria: selectedCategoria,
+          color: selectedColor,
+          estilo: selectedEstilo,
+          precioMax: precioMax,
+          search: searchQuery
+        }),
+        fetchSettings()
+      ]);
+      
+      setGorras(capsData);
+      if (settingsData && settingsData.whatsapp_phone) {
+        setPhone(settingsData.whatsapp_phone);
+      }
+    } catch (err) {
+      console.error('Error al cargar datos:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [selectedCategoria, selectedColor, selectedEstilo, precioMax, searchQuery]);
+
+  const handleResetFilters = () => {
+    setSelectedCategoria('Todas');
+    setSelectedColor('Todos');
+    setSelectedEstilo('Todos');
+    setPrecioMax(200000);
+    setSearchQuery('');
+  };
+
+  const scrollToCatalog = () => {
+    catalogRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<PublicLayout />}>
-          <Route index element={<Home />} />
-          <Route path="nosotros" element={<About />} />
-          <Route path="servicios" element={<Services />} />
-          <Route path="precios" element={<Pricing />} />
-          <Route path="promociones" element={<Promotions />} />
-          <Route path="contacto" element={<Contact />} />
-        </Route>
+    <div className="min-h-screen bg-[#08090c] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
+      
+      {/* 1. Navbar con buscador y acceso Admin */}
+      <Navbar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        phone={phone}
+        onOpenAdmin={() => setShowAdminPanel(true)}
+        onToggleMobileFilter={() => setMobileFilterOpen(!mobileFilterOpen)}
+        totalGorras={gorras.length}
+      />
 
-        {/* Auth Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      {/* 2. Hero Section con diseño visual impacto */}
+      <HeroBanner onScrollToCatalog={scrollToCatalog} />
 
-        {/* Protected Admin Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="users" element={<UsersManager />} />
-            <Route path="messages" element={<MessagesManager />} />
-            <Route path="services" element={<ServicesManager />} />
-            <Route path="promotions" element={<PromotionsManager />} />
-            <Route path="pricing" element={<PlansManager />} />
-          </Route>
-        </Route>
+      {/* 3. Catálogo Principal con Filtros en vivo */}
+      <main ref={catalogRef} className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          
+          {/* Sidebar Filtros (Desktop) */}
+          <div className="hidden lg:block sticky top-24">
+            <FilterSidebar
+              selectedCategoria={selectedCategoria}
+              setSelectedCategoria={setSelectedCategoria}
+              selectedColor={selectedColor}
+              setSelectedColor={setSelectedColor}
+              selectedEstilo={selectedEstilo}
+              setSelectedEstilo={setSelectedEstilo}
+              precioMax={precioMax}
+              setPrecioMax={setPrecioMax}
+              onResetFilters={handleResetFilters}
+            />
+          </div>
 
-        {/* 404 */}
-        <Route path="*" element={<div className="min-h-screen bg-background flex flex-col items-center justify-center"><h1>404 - No Encontrado</h1><a href="/" className="mt-4 text-accent">Volver al inicio</a></div>} />
-      </Routes>
-    </BrowserRouter>
+          {/* Sidebar Filtros (Móvil colapsable) */}
+          {mobileFilterOpen && (
+            <div className="lg:hidden w-full mb-4">
+              <FilterSidebar
+                selectedCategoria={selectedCategoria}
+                setSelectedCategoria={setSelectedCategoria}
+                selectedColor={selectedColor}
+                setSelectedColor={setSelectedColor}
+                selectedEstilo={selectedEstilo}
+                setSelectedEstilo={setSelectedEstilo}
+                precioMax={precioMax}
+                setPrecioMax={setPrecioMax}
+                onResetFilters={handleResetFilters}
+              />
+            </div>
+          )}
+
+          {/* Grid de Gorras */}
+          <CapGrid
+            gorras={gorras}
+            phone={phone}
+            onSelectCap={(cap) => setSelectedCapModal(cap)}
+            onResetFilters={handleResetFilters}
+            loading={loading}
+          />
+
+        </div>
+
+      </main>
+
+      {/* 4. Modal Ver Detalle & Formulario Opcional para WhatsApp */}
+      {selectedCapModal && (
+        <QuickViewModal
+          cap={selectedCapModal}
+          phone={phone}
+          onClose={() => setSelectedCapModal(null)}
+        />
+      )}
+
+      {/* 5. Panel de Administración */}
+      {showAdminPanel && (
+        <AdminPanel
+          gorras={gorras}
+          phone={phone}
+          onClose={() => setShowAdminPanel(false)}
+          onRefreshData={loadData}
+        />
+      )}
+
+      {/* 6. Footer con información de la tienda y copyright */}
+      <Footer
+        phone={phone}
+        onOpenAdmin={() => setShowAdminPanel(true)}
+      />
+
+    </div>
   );
 }
 

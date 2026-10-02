@@ -12,7 +12,20 @@ export const fetchGorras = async (filters = {}) => {
 
     const res = await fetch(`${API_BASE_URL}/caps?${params.toString()}`);
     if (!res.ok) throw new Error('Error al conectar con la API');
-    return await res.json();
+    const data = await res.json();
+
+    // Si la API devuelve gorras de prueba antiguas, reemplazar inmediatamente con las 5 colecciones reales
+    const hasOldDummyData = Array.isArray(data) && data.some(g => 
+      g.nombre?.includes('Sports Speed') || 
+      g.nombre?.includes('Vintage Crimson') || 
+      g.nombre?.includes('Luxury Edition Gold')
+    );
+
+    if (hasOldDummyData || !Array.isArray(data) || data.length === 0) {
+      return getFallbackGorras(filters);
+    }
+
+    return data;
   } catch (err) {
     console.warn('⚠️ No se pudo conectar al backend API Express. Usando catálogo local temporal:', err);
     return getFallbackGorras(filters);

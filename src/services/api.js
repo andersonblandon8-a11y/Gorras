@@ -14,14 +14,7 @@ export const fetchGorras = async (filters = {}) => {
     if (!res.ok) throw new Error('Error al conectar con la API');
     const data = await res.json();
 
-    // Si la API devuelve gorras de prueba antiguas, reemplazar inmediatamente con las 5 colecciones reales
-    const hasOldDummyData = Array.isArray(data) && data.some(g => 
-      g.nombre?.includes('Sports Speed') || 
-      g.nombre?.includes('Vintage Crimson') || 
-      g.nombre?.includes('Luxury Edition Gold')
-    );
-
-    if (hasOldDummyData || !Array.isArray(data) || data.length === 0) {
+    if (!Array.isArray(data)) {
       return getFallbackGorras(filters);
     }
 
@@ -105,6 +98,45 @@ export const uploadImagenesAPI = async (files) => {
 
 // Alias compatible para subir un solo archivo
 export const uploadImagenAPI = uploadImagenesAPI;
+
+// Exportar todo el catálogo como JSON (se descarga automáticamente)
+export const exportBackupAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/caps/export`);
+  if (!res.ok) throw new Error('Error al exportar el catálogo');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `crown_cap_backup_${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// Importar catálogo desde un archivo JSON (objeto File)
+export const importBackupAPI = async (file, clearBefore = true) => {
+  const text = await file.text();
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Archivo inválido: debe ser un JSON de respaldo de Crown & Cap');
+  }
+  const gorras = parsed.gorras ?? (Array.isArray(parsed) ? parsed : null);
+  if (!gorras) throw new Error('El archivo no contiene datos de gorras reconocibles');
+
+  const res = await fetch(`${API_BASE_URL}/caps/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gorras, clearBefore })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Error al importar el catálogo');
+  }
+  return await res.json();
+};
 
 // Fallback de respaldo en caso de que se pruebe en un entorno sin puerto 5000 activo
 function getFallbackGorras(filters) {

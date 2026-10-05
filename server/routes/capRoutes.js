@@ -1,8 +1,10 @@
 import express from 'express';
-import { getGorras, getGorraById, createGorra, updateGorra, deleteGorra, getMetadata } from '../controllers/capController.js';
+import { getGorras, getGorraById, createGorra, updateGorra, deleteGorra, getMetadata, exportBackup, importBackup } from '../controllers/capController.js';
 
 const router = express.Router();
 
+router.get('/export', exportBackup);
+router.post('/import', importBackup);
 router.get('/', getGorras);
 router.get('/metadata', getMetadata);
 router.get('/:id', getGorraById);

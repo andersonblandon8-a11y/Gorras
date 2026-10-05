@@ -102,3 +102,31 @@ export const getMetadata = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener metadatos de filtros.' });
   }
 };
+
+// GET /api/caps/export → exportar todas las gorras como JSON
+export const exportBackup = async (req, res) => {
+  try {
+    const gorras = await CapModel.getAll({});
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="crown_cap_backup_${Date.now()}.json"`);
+    res.json({ version: 1, exportedAt: new Date().toISOString(), gorras });
+  } catch (err) {
+    console.error('Error al exportar respaldo:', err);
+    res.status(500).json({ error: 'Error al exportar el catálogo.' });
+  }
+};
+
+// POST /api/caps/import → importar gorras desde JSON
+export const importBackup = async (req, res) => {
+  try {
+    const { gorras, clearBefore = true } = req.body;
+    if (!Array.isArray(gorras)) {
+      return res.status(400).json({ error: 'El cuerpo debe tener una propiedad "gorras" que sea un arreglo.' });
+    }
+    const inserted = await CapModel.bulkImport(gorras, clearBefore);
+    res.json({ message: `✅ ${inserted.length} gorras restauradas con éxito.`, count: inserted.length });
+  } catch (err) {
+    console.error('Error al importar respaldo:', err);
+    res.status(500).json({ error: 'Error al importar el catálogo.' });
+  }
+};

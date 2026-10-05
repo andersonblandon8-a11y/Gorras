@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle, Star, Images } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle, Star, Images, Download, RefreshCw, ShieldCheck } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
-import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenesAPI } from '../services/api';
+import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenesAPI, exportBackupAPI, importBackupAPI } from '../services/api';
 
 const PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
@@ -46,6 +46,12 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
   const [waPhone, setWaPhone] = useState(phone || '573502522375');
   const [savingSettings, setSavingSettings] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Estado para Respaldo
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupError, setBackupError] = useState('');
+  const [backupSuccess, setBackupSuccess] = useState('');
+  const importFileRef = useRef(null);
 
   // Subir múltiples imágenes para nueva gorra
   const handleUploadFiles = async (fileList) => {
@@ -319,6 +325,18 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
           >
             <Phone className="w-4 h-4" />
             <span>Ajustes WhatsApp</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('backup')}
+            className={`px-4 py-2.5 rounded-t-xl font-bold text-xs flex items-center gap-2 transition-all ${
+              activeTab === 'backup'
+                ? 'bg-[#0d0e14] text-emerald-400 border-t border-x border-slate-800'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Respaldo Catálogo</span>
           </button>
         </div>
 
@@ -849,6 +867,113 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
               </button>
             </div>
           </form>
+        )}
+
+        {/* TAB 4: RESPALDO / BACKUP */}
+        {activeTab === 'backup' && (
+          <div className="p-6 space-y-6">
+            <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/20 p-4 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-emerald-300">¿Por qué usar el Respaldo?</p>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Render reinicia el servidor cada vez que se actualiza el código. Si no usas respaldo,
+                  los productos que agregas desde el panel se pueden perder. Con el botón <strong className="text-white">Exportar</strong> guardas todo en un archivo en tu celular o PC.
+                  Con <strong className="text-white">Importar</strong> los restauras en segundos.
+                </p>
+              </div>
+            </div>
+
+            {backupError && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs px-4 py-3 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{backupError}</span>
+              </div>
+            )}
+            {backupSuccess && (
+              <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs px-4 py-3 flex items-center gap-2">
+                <Check className="w-4 h-4 shrink-0" />
+                <span>{backupSuccess}</span>
+              </div>
+            )}
+
+            {/* Exportar */}
+            <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Download className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-white">💾 Exportar Respaldo (guardar mis gorras)</h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                Descarga un archivo <code className="text-amber-300">.json</code> con todas las gorras del catálogo actual ({gorras.length} gorras).
+                Guárdalo en tu celular o en Drive. Lo necesitarás si el servidor se reinicia.
+              </p>
+              <button
+                disabled={backupLoading || gorras.length === 0}
+                onClick={async () => {
+                  setBackupError('');
+                  setBackupSuccess('');
+                  setBackupLoading(true);
+                  try {
+                    await exportBackupAPI();
+                    setBackupSuccess(`✅ Respaldo descargado exitosamente con ${gorras.length} gorras.`);
+                    setTimeout(() => setBackupSuccess(''), 5000);
+                  } catch (err) {
+                    setBackupError('Error al exportar: ' + err.message);
+                  } finally {
+                    setBackupLoading(false);
+                  }
+                }}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs flex items-center gap-2 transition-colors shadow-lg shadow-amber-500/20"
+              >
+                {backupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                <span>{backupLoading ? 'Exportando...' : 'Descargar Respaldo del Catálogo'}</span>
+              </button>
+            </div>
+
+            {/* Importar */}
+            <div className="rounded-2xl bg-slate-900/80 border border-slate-800 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <UploadCloud className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">📥 Importar Respaldo (recuperar mis gorras)</h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                Selecciona el archivo <code className="text-emerald-300">.json</code> que exportaste antes para restaurar todos tus productos.
+                <span className="text-amber-400 font-semibold"> Esto reemplazará el catálogo actual.</span>
+              </p>
+              <input
+                type="file"
+                accept=".json,application/json"
+                ref={importFileRef}
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setBackupError('');
+                  setBackupSuccess('');
+                  setBackupLoading(true);
+                  try {
+                    const result = await importBackupAPI(file, true);
+                    setBackupSuccess(result.message || `✅ ${result.count} gorras restauradas con éxito.`);
+                    onRefreshData();
+                    setTimeout(() => setBackupSuccess(''), 6000);
+                  } catch (err) {
+                    setBackupError('Error al importar: ' + err.message);
+                  } finally {
+                    setBackupLoading(false);
+                    if (importFileRef.current) importFileRef.current.value = '';
+                  }
+                }}
+              />
+              <button
+                disabled={backupLoading}
+                onClick={() => importFileRef.current?.click()}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                {backupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                <span>{backupLoading ? 'Importando...' : 'Seleccionar Archivo de Respaldo'}</span>
+              </button>
+            </div>
+          </div>
         )}
 
       </div>

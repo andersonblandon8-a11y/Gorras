@@ -119,14 +119,40 @@ export const CapModel = {
     });
   },
 
-  // Eliminar una gorra
-  delete: (id) => {
+  // Eliminar todas las gorras (para limpieza o restauración total)
+  clearAll: () => {
     return new Promise((resolve, reject) => {
-      db.run('DELETE FROM gorras WHERE id = ?', [id], function(err) {
+      db.run('DELETE FROM gorras', function(err) {
         if (err) reject(err);
-        else resolve({ id, changes: this.changes });
+        else resolve({ changes: this.changes });
       });
     });
+  },
+
+  // Importación masiva de gorras desde copia de seguridad
+  bulkImport: async (caps, clearBefore = false) => {
+    if (!Array.isArray(caps)) throw new Error('Los datos deben ser un arreglo de gorras');
+    if (clearBefore) {
+      await CapModel.clearAll();
+    }
+    const inserted = [];
+    for (const cap of caps) {
+      if (!cap.nombre || !cap.precio) continue;
+      const res = await CapModel.create({
+        nombre: cap.nombre,
+        descripcion: cap.descripcion || '',
+        precio: parseFloat(cap.precio) || 0,
+        color: cap.color || 'Negro',
+        categoria: cap.categoria || 'Snapback',
+        estilo: cap.estilo || 'Urbano',
+        imagen_url: cap.imagen_url || (Array.isArray(cap.imagenes) ? cap.imagenes[0] : ''),
+        imagenes: Array.isArray(cap.imagenes) ? cap.imagenes : (cap.imagen_url ? [cap.imagen_url] : []),
+        destacada: cap.destacada ? 1 : 0,
+        stock: parseInt(cap.stock, 10) || 1
+      });
+      inserted.push(res);
+    }
+    return inserted;
   },
 
   // Obtener metadatos de categorías, colores y estilos existentes

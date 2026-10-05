@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { X, Plus, Edit2, Trash2, Save, Phone, DollarSign, Image, Package, Check, RefreshCw, Lock, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
-import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI } from '../services/api';
+import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenAPI } from '../services/api';
 
 const PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
@@ -27,21 +27,68 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
     color: 'Negro',
     categoria: 'Snapback',
     estilo: 'Urbano',
-    imagen_url: PRESET_IMAGES[0],
+    imagen_url: '',
     destacada: false,
     stock: 10
   });
+
+  // Estado para subida de imagen
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+  const [useUrlInput, setUseUrlInput] = useState(false);
+  const [uploadingEditImage, setUploadingEditImage] = useState(false);
+  const fileInputRef = useRef(null);
+  const editFileInputRef = useRef(null);
 
   // Estado para teléfono de WhatsApp
   const [waPhone, setWaPhone] = useState(phone || '573502522375');
   const [savingSettings, setSavingSettings] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Subir imagen por archivo
+  const handleUploadFile = async (file) => {
+    if (!file) return;
+    setUploadError('');
+    setUploadingImage(true);
+    // Preview local inmediato
+    const localPreview = URL.createObjectURL(file);
+    setImagePreview(localPreview);
+    try {
+      const result = await uploadImagenAPI(file);
+      setNewCap(prev => ({ ...prev, imagen_url: result.url }));
+      setImagePreview(result.url);
+    } catch (err) {
+      setUploadError('Error al subir la imagen: ' + err.message);
+      setImagePreview('');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Subir imagen por archivo en modo edición
+  const handleEditUploadFile = async (file) => {
+    if (!file) return;
+    setUploadingEditImage(true);
+    try {
+      const result = await uploadImagenAPI(file);
+      setEditForm(prev => ({ ...prev, imagen_url: result.url }));
+    } catch (err) {
+      alert('Error al subir imagen: ' + err.message);
+    } finally {
+      setUploadingEditImage(false);
+    }
+  };
+
   // 1. Manejo de Crear Gorra
   const handleCreateCap = async (e) => {
     e.preventDefault();
     if (!newCap.nombre || !newCap.precio) {
       alert('Por favor ingresa el nombre y precio de la gorra.');
+      return;
+    }
+    if (!newCap.imagen_url) {
+      alert('Por favor sube una imagen para la gorra.');
       return;
     }
 
@@ -55,10 +102,11 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
         color: 'Negro',
         categoria: 'Snapback',
         estilo: 'Urbano',
-        imagen_url: PRESET_IMAGES[0],
+        imagen_url: '',
         destacada: false,
         stock: 10
       });
+      setImagePreview('');
       onRefreshData();
       setTimeout(() => {
         setSuccessMsg('');
@@ -258,6 +306,42 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
                             </div>
                           </div>
 
+                          {/* Foto de la gorra en edición */}
+                          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <img
+                                src={editForm.imagen_url}
+                                alt="Preview"
+                                className="w-12 h-12 object-contain rounded-lg bg-slate-900 border border-slate-700 shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Foto Actual</span>
+                                <span className="text-[11px] text-slate-300 truncate max-w-[220px] block">{editForm.imagen_url}</span>
+                              </div>
+                            </div>
+                            <div>
+                              <input
+                                ref={editFileInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleEditUploadFile(file);
+                                }}
+                              />
+                              <button
+                                type="button"
+                                disabled={uploadingEditImage}
+                                onClick={() => editFileInputRef.current?.click()}
+                                className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                              >
+                                <UploadCloud className="w-3.5 h-3.5" />
+                                <span>{uploadingEditImage ? 'Subiendo...' : 'Cambiar imagen por archivo'}</span>
+                              </button>
+                            </div>
+                          </div>
+
                           <div className="flex justify-end gap-2 pt-2">
                             <button
                               onClick={() => setEditingId(null)}
@@ -416,31 +500,136 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
               />
             </div>
 
+            {/* ── SUBIDA DE IMAGEN POR ARCHIVO O ENLACE ── */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase mb-1">URL de la Imagen de la Gorra</label>
-              <input
-                type="url"
-                value={newCap.imagen_url}
-                onChange={(e) => setNewCap({ ...newCap, imagen_url: e.target.value })}
-                placeholder="https://..."
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-              />
-              {/* Presets rápidas */}
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-[11px] text-slate-400">Presets de imágenes:</span>
-                <div className="flex gap-1.5">
-                  {PRESET_IMAGES.map((imgUrl, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setNewCap({ ...newCap, imagen_url: imgUrl })}
-                      className="w-6 h-6 rounded-md overflow-hidden border border-slate-700 hover:border-amber-400"
-                    >
-                      <img src={imgUrl} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-slate-300 uppercase">
+                  Imagen de la Gorra *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setUseUrlInput(!useUrlInput)}
+                  className="text-[11px] text-amber-400 hover:text-amber-300 underline"
+                >
+                  {useUrlInput ? '📁 Subir archivo desde tu dispositivo' : '🔗 O ingresar enlace URL'}
+                </button>
               </div>
+
+              {!useUrlInput ? (
+                /* Zona Drag & Drop / Click para archivo */
+                <div
+                  className={`relative w-full border-2 border-dashed rounded-2xl transition-all cursor-pointer ${
+                    uploadingImage
+                      ? 'border-amber-500/60 bg-amber-500/5'
+                      : imagePreview
+                      ? 'border-emerald-500/50 bg-emerald-500/5'
+                      : 'border-slate-700 hover:border-amber-500/50 bg-slate-900/60'
+                  }`}
+                  onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleUploadFile(file);
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadFile(file);
+                    }}
+                  />
+
+                  {imagePreview ? (
+                    /* Preview de imagen cargada */
+                    <div className="p-3 flex items-center gap-4">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-24 h-20 object-contain rounded-xl bg-slate-950 border border-slate-700"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 mb-1">
+                          <Check className="w-3.5 h-3.5" /> Imagen cargada por archivo correctamente
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate">{newCap.imagen_url}</p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setImagePreview('');
+                            setNewCap(prev => ({ ...prev, imagen_url: '' }));
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="mt-1.5 text-[11px] text-rose-400 hover:text-rose-300 underline"
+                        >
+                          Cambiar imagen
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Estado vacío / subiendo */
+                    <div className="py-8 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                      {uploadingImage ? (
+                        <>
+                          <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                          <p className="text-xs text-amber-400 font-semibold">Subiendo imagen al servidor...</p>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud className="w-8 h-8 text-amber-400/80" />
+                          <p className="text-xs text-slate-200 font-semibold">Haz clic o arrastra un archivo de imagen aquí</p>
+                          <p className="text-[11px] text-slate-500">JPG, PNG, WEBP, GIF hasta 10 MB</p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Entrada manual por URL */
+                <div>
+                  <input
+                    type="url"
+                    value={newCap.imagen_url}
+                    onChange={(e) => {
+                      setNewCap({ ...newCap, imagen_url: e.target.value });
+                      setImagePreview(e.target.value);
+                    }}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-[11px] text-slate-400">Presets rápidos:</span>
+                    <div className="flex gap-1.5">
+                      {PRESET_IMAGES.map((imgUrl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setNewCap({ ...newCap, imagen_url: imgUrl });
+                            setImagePreview(imgUrl);
+                          }}
+                          className="w-6 h-6 rounded-md overflow-hidden border border-slate-700 hover:border-amber-400"
+                        >
+                          <img src={imgUrl} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error de subida */}
+              {uploadError && (
+                <div className="mt-2 p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
             </div>
 
             <div className="pt-2 flex justify-end">

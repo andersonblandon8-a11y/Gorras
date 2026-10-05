@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import capRoutes from './routes/capRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 import fs from 'fs';
 
@@ -24,6 +25,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 // API Routes
 app.use('/api/caps', capRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Endpoint de verificación de estado
 app.get('/api/health', (req, res) => {

@@ -84,6 +84,19 @@ export const updateSettingsAPI = async (settings) => {
   return await res.json();
 };
 
+// Subir imagen desde archivo local (multipart/form-data)
+export const uploadImagenAPI = async (file) => {
+  const formData = new FormData();
+  formData.append('imagen', file);
+
+  const res = await fetch(`${API_BASE_URL}/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  if (!res.ok) throw new Error('Error al subir la imagen');
+  return await res.json(); // { url: '/uploads/gorra_xxxx.jpg' }
+};
+
 // Fallback de respaldo en caso de que se pruebe en un entorno sin puerto 5000 activo
 function getFallbackGorras(filters) {
   let list = [

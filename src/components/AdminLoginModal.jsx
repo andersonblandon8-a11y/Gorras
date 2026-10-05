@@ -14,10 +14,10 @@ export const AdminLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
     setError('');
 
     // Credenciales de administración
-    const validUser = 'admin';
-    const validPass = localStorage.getItem('admin_custom_password') || 'admin123';
+    const validUser = 'Admin';
+    const validPass = 'Alemania1021++';
 
-    if (username.trim().toLowerCase() === validUser && password === validPass) {
+    if (username.trim() === validUser && password === validPass) {
       sessionStorage.setItem('admin_authenticated', 'true');
       onLoginSuccess();
       setUsername('');
@@ -110,11 +110,7 @@ export const AdminLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
           </button>
         </form>
 
-        {/* Nota informativa de credenciales por defecto */}
-        <div className="mt-6 p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 text-center space-y-1">
-          <span className="font-semibold text-amber-400 block">Acceso de Seguridad</span>
-          <p>Usuario: <strong className="text-white">admin</strong> | Clave inicial: <strong className="text-white">admin123</strong></p>
-        </div>
+
 
       </div>
     </div>

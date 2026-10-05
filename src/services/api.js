@@ -138,6 +138,16 @@ export const importBackupAPI = async (file, clearBefore = true) => {
   return await res.json();
 };
 
+// Eliminar todas las gorras de ejemplo del catálogo
+export const purgeDemoAPI = async () => {
+  const res = await fetch(`${API_BASE_URL}/caps/purge-demo`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Error al limpiar datos de ejemplo');
+  }
+  return await res.json();
+};
+
 // Fallback de respaldo en caso de que se pruebe en un entorno sin puerto 5000 activo
 function getFallbackGorras(filters) {
   let list = [

@@ -103,6 +103,44 @@ export const getMetadata = async (req, res) => {
   }
 };
 
+// DELETE /api/caps/purge-demo → elimina gorras de ejemplo por nombre
+export const purgeDemo = async (req, res) => {
+  try {
+    const DEMO_NAMES = [
+      'Gorra Snapback Dark Crown Black',
+      'Gorra Trucker Cyber Neon Emerald',
+      'Gorra Minimalist Dad Hat White Sand',
+      'Gorra Luxury Edition Gold Stealth',
+      'Gorra Vintage Crimson Red Classic',
+      'Gorra Sports Speed Blue Navy',
+      // variantes sin prefijo "Gorra "
+      'Snapback Dark Crown Black',
+      'Trucker Cyber Neon Emerald',
+      'Minimalist Dad Hat White Sand',
+      'Luxury Edition Gold Stealth',
+      'Vintage Crimson Red Classic',
+      'Sports Speed Blue Navy'
+    ];
+
+    const db = (await import('../config/db.js')).default;
+    const placeholders = DEMO_NAMES.map(() => '?').join(',');
+    const result = await new Promise((resolve, reject) => {
+      db.run(
+        `DELETE FROM gorras WHERE nombre IN (${placeholders})`,
+        DEMO_NAMES,
+        function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        }
+      );
+    });
+    res.json({ message: `✅ ${result.changes} gorras de ejemplo eliminadas.`, changes: result.changes });
+  } catch (err) {
+    console.error('Error al limpiar gorras de ejemplo:', err);
+    res.status(500).json({ error: 'Error al limpiar los datos de ejemplo.' });
+  }
+};
+
 // GET /api/caps/export → exportar todas las gorras como JSON
 export const exportBackup = async (req, res) => {
   try {

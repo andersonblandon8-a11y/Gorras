@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle, Star, Images, Download, RefreshCw, ShieldCheck } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
-import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenesAPI, exportBackupAPI, importBackupAPI } from '../services/api';
+import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenesAPI, exportBackupAPI, importBackupAPI, purgeDemoAPI } from '../services/api';
 
 const PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
@@ -971,6 +971,41 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
               >
                 {backupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
                 <span>{backupLoading ? 'Importando...' : 'Seleccionar Archivo de Respaldo'}</span>
+              </button>
+            </div>
+
+            {/* Limpiar datos de ejemplo */}
+            <div className="rounded-2xl bg-red-950/30 border border-red-900/40 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-red-400" />
+                <h3 className="text-sm font-bold text-white">🗑️ Limpiar datos de ejemplo</h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                Elimina de una vez las gorras de ejemplo del sistema (Sports Speed, Vintage Crimson, Luxury Gold, Snapback Dark, Trucker Neon, Minimalist Dad Hat).
+                <span className="text-red-400 font-semibold"> Esta acción no se puede deshacer.</span>
+              </p>
+              <button
+                disabled={backupLoading}
+                onClick={async () => {
+                  if (!window.confirm('¿Eliminar TODAS las gorras de ejemplo? Esta acción no se puede deshacer.')) return;
+                  setBackupError('');
+                  setBackupSuccess('');
+                  setBackupLoading(true);
+                  try {
+                    const result = await purgeDemoAPI();
+                    setBackupSuccess(result.message || '✅ Datos de ejemplo eliminados.');
+                    onRefreshData();
+                    setTimeout(() => setBackupSuccess(''), 5000);
+                  } catch (err) {
+                    setBackupError('Error: ' + err.message);
+                  } finally {
+                    setBackupLoading(false);
+                  }
+                }}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-red-700 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-2 transition-colors"
+              >
+                {backupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>{backupLoading ? 'Eliminando...' : 'Eliminar Gorras de Ejemplo'}</span>
               </button>
             </div>
           </div>

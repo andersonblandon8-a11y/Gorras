@@ -2,7 +2,7 @@ import React from 'react';
 import { CapCard } from './CapCard';
 import { Sparkles, PackageX, RotateCcw } from 'lucide-react';
 
-export const CapGrid = ({ gorras, phone, onSelectCap, onResetFilters, loading }) => {
+export const CapGrid = ({ gorras, phone, onSelectCap, onZoomImage, onResetFilters, loading }) => {
   if (loading) {
     return (
       <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -58,6 +58,7 @@ export const CapGrid = ({ gorras, phone, onSelectCap, onResetFilters, loading })
             cap={cap}
             phone={phone}
             onSelectCap={onSelectCap}
+            onZoomImage={onZoomImage}
           />
         ))}
       </div>

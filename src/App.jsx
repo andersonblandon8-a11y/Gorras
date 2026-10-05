@@ -5,6 +5,8 @@ import { FilterSidebar } from './components/FilterSidebar';
 import { CapGrid } from './components/CapGrid';
 import { QuickViewModal } from './components/QuickViewModal';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminLoginModal } from './components/AdminLoginModal';
+import { ImageLightbox } from './components/ImageLightbox';
 import { Footer } from './components/Footer';
 import { fetchGorras, fetchSettings } from './services/api';
 
@@ -24,7 +26,9 @@ export function App() {
 
   // Modales
   const [selectedCapModal, setSelectedCapModal] = useState(null);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [zoomedCap, setZoomedCap] = useState(null);           // Lightbox de imagen ampliada
+  const [showAdminLogin, setShowAdminLogin] = useState(false); // Modal login admin
+  const [showAdminPanel, setShowAdminPanel] = useState(false); // Panel admin
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const catalogRef = useRef(null);
@@ -71,6 +75,28 @@ export function App() {
     catalogRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Abrir Admin: pide login si no hay sesión activa en esta pestaña
+  const handleOpenAdmin = () => {
+    const isAuth = sessionStorage.getItem('admin_authenticated') === 'true';
+    if (isAuth) {
+      setShowAdminPanel(true);
+    } else {
+      setShowAdminLogin(true);
+    }
+  };
+
+  // Login exitoso: guarda sesión y abre panel
+  const handleAdminLoginSuccess = () => {
+    setShowAdminLogin(false);
+    setShowAdminPanel(true);
+  };
+
+  // Cerrar admin y limpiar sesión
+  const handleCloseAdmin = () => {
+    setShowAdminPanel(false);
+    sessionStorage.removeItem('admin_authenticated');
+  };
+
   return (
     <div className="min-h-screen bg-[#08090c] text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
       
@@ -79,7 +105,7 @@ export function App() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         phone={phone}
-        onOpenAdmin={() => setShowAdminPanel(true)}
+        onOpenAdmin={handleOpenAdmin}
         onToggleMobileFilter={() => setMobileFilterOpen(!mobileFilterOpen)}
         totalGorras={gorras.length}
       />
@@ -129,6 +155,7 @@ export function App() {
             gorras={gorras}
             phone={phone}
             onSelectCap={(cap) => setSelectedCapModal(cap)}
+            onZoomImage={(cap) => setZoomedCap(cap)}
             onResetFilters={handleResetFilters}
             loading={loading}
           />
@@ -143,23 +170,43 @@ export function App() {
           cap={selectedCapModal}
           phone={phone}
           onClose={() => setSelectedCapModal(null)}
+          onZoomImage={(cap) => {
+            setSelectedCapModal(null);
+            setZoomedCap(cap);
+          }}
         />
       )}
 
-      {/* 5. Panel de Administración */}
+      {/* 5. Lightbox de imagen ampliada con zoom */}
+      {zoomedCap && (
+        <ImageLightbox
+          cap={zoomedCap}
+          phone={phone}
+          onClose={() => setZoomedCap(null)}
+        />
+      )}
+
+      {/* 6. Modal de Login para Admin */}
+      <AdminLoginModal
+        isOpen={showAdminLogin}
+        onClose={() => setShowAdminLogin(false)}
+        onLoginSuccess={handleAdminLoginSuccess}
+      />
+
+      {/* 7. Panel de Administración (solo si está autenticado) */}
       {showAdminPanel && (
         <AdminPanel
           gorras={gorras}
           phone={phone}
-          onClose={() => setShowAdminPanel(false)}
+          onClose={handleCloseAdmin}
           onRefreshData={loadData}
         />
       )}
 
-      {/* 6. Footer con información de la tienda y copyright */}
+      {/* 8. Footer con información de la tienda y copyright */}
       <Footer
         phone={phone}
-        onOpenAdmin={() => setShowAdminPanel(true)}
+        onOpenAdmin={handleOpenAdmin}
       />
 
     </div>

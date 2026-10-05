@@ -3,7 +3,7 @@ import { MessageSquare, Eye, Sparkles, Tag } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
 import { buildWhatsAppLink } from '../utils/whatsappHelper';
 
-export const CapCard = ({ cap, phone, onSelectCap }) => {
+export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
   const directWaLink = buildWhatsAppLink(phone, cap);
 
   return (
@@ -11,55 +11,57 @@ export const CapCard = ({ cap, phone, onSelectCap }) => {
       
       {/* Badge de Destacada / Edición Especial */}
       {cap.destacada === 1 && (
-        <div className="absolute top-3 left-3 z-10 bg-amber-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
+        <div className="absolute top-3 left-3 z-20 bg-amber-500 text-slate-950 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-lg flex items-center gap-1 pointer-events-none">
           <Sparkles className="w-3 h-3 fill-black" />
           <span>Destacada</span>
         </div>
       )}
 
-      {/* Badge de Color & Categoría */}
-      <div className="absolute top-3 right-3 z-10 flex gap-1">
+      {/* Badge de Color */}
+      <div className="absolute top-3 right-3 z-20 flex gap-1 pointer-events-none">
         <span className="bg-slate-950/80 backdrop-blur-md text-slate-300 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/10">
           {cap.color}
         </span>
       </div>
 
-      {/* Imagen de la Gorra Desplegada Completa con Zoom Effect */}
+      {/* Imagen Limpia de la Gorra sin capas raras por detrás */}
       <div 
-        className="relative aspect-[4/3] w-full overflow-hidden bg-slate-950 cursor-pointer flex items-center justify-center border-b border-slate-800/60" 
+        className="relative aspect-[4/3] w-full overflow-hidden bg-[#0a0c12] cursor-pointer flex items-center justify-center border-b border-slate-800/60" 
         onClick={() => onSelectCap(cap)}
       >
-        {/* Fondo sutilmente difuminado para rellenar de forma armónica */}
-        <img
-          src={cap.imagen_url}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover blur-xl opacity-40 scale-110"
-        />
-        
-        {/* Imagen principal 100% desplegada sin recortes */}
+        {/* Imagen principal NÍTIDA y LIMPIA sin fondo borroso */}
         <img
           src={cap.imagen_url}
           alt={cap.nombre}
-          className="relative z-10 w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out"
+          className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out z-10"
           loading="lazy"
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-80 z-10 pointer-events-none" />
 
-        {/* Hover overlay button Quick View */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20">
+        {/* Hover overlay con botones: Ampliar Foto y Hacer Pedido */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col sm:flex-row items-center justify-center gap-2.5 z-20 p-4">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onZoomImage(cap);
+            }}
+            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/40 shadow-xl transition-transform hover:scale-105"
+          >
+            <Eye className="w-4 h-4 text-amber-400" />
+            <span>🔍 Ampliar Detalle</span>
+          </button>
+
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSelectCap(cap);
             }}
-            className="px-4 py-2 rounded-xl bg-white/90 hover:bg-white text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-xl transition-transform hover:scale-105"
+            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xl transition-transform hover:scale-105"
           >
-            <Eye className="w-4 h-4" />
-            <span>Ver Imagen Completa / Pedido</span>
+            <span>Ver Formulario</span>
           </button>
         </div>
       </div>

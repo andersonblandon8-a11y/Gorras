@@ -3,7 +3,7 @@ import { X, MessageSquare, Send, Tag, Palette, CheckCircle2, User, Phone, MapPin
 import { formatCOP } from '../utils/currencyFormatter';
 import { buildWhatsAppLink } from '../utils/whatsappHelper';
 
-export const QuickViewModal = ({ cap, phone, onClose }) => {
+export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
@@ -40,23 +40,24 @@ export const QuickViewModal = ({ cap, phone, onClose }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2">
           
-          {/* Lado izquierdo: Foto desplegada completa y especificaciones */}
+          {/* Lado izquierdo: Foto limpia desplegada y especificaciones */}
           <div className="relative bg-slate-950 p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-900 mb-4 border border-slate-800 flex items-center justify-center">
-              <img
-                src={cap.imagen_url}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover blur-xl opacity-40 scale-110"
-              />
+            <div 
+              className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#0a0c12] mb-4 border border-slate-800 flex items-center justify-center cursor-pointer group"
+              onClick={() => onZoomImage && onZoomImage(cap)}
+            >
               <img
                 src={cap.imagen_url}
                 alt={cap.nombre}
-                className="relative z-10 w-full h-full object-contain p-2"
+                className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
                 }}
               />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400 font-bold text-xs gap-1.5 backdrop-blur-[1px]">
+                <span>🔍 Ampliar Imagen al 100%</span>
+              </div>
             </div>
 
             <div className="space-y-3">

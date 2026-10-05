@@ -1,10 +1,26 @@
-import React from 'react';
-import { MessageSquare, Eye, Sparkles, Tag } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageSquare, Eye, Sparkles, Tag, ChevronLeft, ChevronRight, Images } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
 import { buildWhatsAppLink } from '../utils/whatsappHelper';
 
 export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
   const directWaLink = buildWhatsAppLink(phone, cap);
+
+  const imagesList = Array.isArray(cap.imagenes) && cap.imagenes.length > 0 
+    ? cap.imagenes 
+    : (cap.imagen_url ? [cap.imagen_url] : []);
+  const currentImage = imagesList[currentImgIndex] || cap.imagen_url;
+
+  const handlePrevImg = (e) => {
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
+  };
+
+  const handleNextImg = (e) => {
+    e.stopPropagation();
+    setCurrentImgIndex((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
+  };
 
   return (
     <div className="glass-card rounded-3xl overflow-hidden flex flex-col group relative">
@@ -17,21 +33,27 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
         </div>
       )}
 
-      {/* Badge de Color */}
-      <div className="absolute top-3 right-3 z-20 flex gap-1 pointer-events-none">
+      {/* Badges de Fotos y Color */}
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 pointer-events-none">
+        {imagesList.length > 1 && (
+          <span className="bg-amber-500/90 backdrop-blur-md text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow flex items-center gap-1">
+            <Images className="w-3 h-3 fill-black" />
+            <span>{imagesList.length} fotos</span>
+          </span>
+        )}
         <span className="bg-slate-950/80 backdrop-blur-md text-slate-300 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/10">
           {cap.color}
         </span>
       </div>
 
-      {/* Imagen Limpia de la Gorra sin capas raras por detrás */}
+      {/* Imagen Limpia de la Gorra */}
       <div 
         className="relative aspect-[4/3] w-full overflow-hidden bg-[#0a0c12] cursor-pointer flex items-center justify-center border-b border-slate-800/60" 
-        onClick={() => onSelectCap(cap)}
+        onClick={() => onSelectCap({ ...cap, activeImageIndex: currentImgIndex })}
       >
-        {/* Imagen principal NÍTIDA y LIMPIA sin fondo borroso */}
+        {/* Imagen principal NÍTIDA */}
         <img
-          src={cap.imagen_url}
+          src={currentImage}
           alt={cap.nombre}
           className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out z-10"
           loading="lazy"
@@ -41,12 +63,44 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
           }}
         />
 
+        {/* Flechas de navegación rápida en tarjeta si tiene más de 1 imagen */}
+        {imagesList.length > 1 && (
+          <>
+            <button
+              onClick={handlePrevImg}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-slate-950/80 text-white hover:bg-amber-500 hover:text-black flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md border border-slate-700"
+              title="Foto anterior"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNextImg}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-slate-950/80 text-white hover:bg-amber-500 hover:text-black flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md border border-slate-700"
+              title="Foto siguiente"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            {/* Indicador de puntitos de fotos */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex gap-1 pointer-events-none">
+              {imagesList.map((_, dotIdx) => (
+                <span
+                  key={dotIdx}
+                  className={`w-1.5 h-1.5 rounded-full transition-all ${
+                    dotIdx === currentImgIndex ? 'bg-amber-400 w-3.5' : 'bg-white/40'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
         {/* Hover overlay con botones: Ampliar Foto y Hacer Pedido */}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col sm:flex-row items-center justify-center gap-2.5 z-20 p-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col sm:flex-row items-center justify-center gap-2.5 z-10 p-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onZoomImage(cap);
+              onZoomImage({ ...cap, activeImageIndex: currentImgIndex });
             }}
             className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/40 shadow-xl transition-transform hover:scale-105"
           >
@@ -57,7 +111,7 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onSelectCap(cap);
+              onSelectCap({ ...cap, activeImageIndex: currentImgIndex });
             }}
             className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xl transition-transform hover:scale-105"
           >

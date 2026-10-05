@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
-import { X, MessageSquare, Send, Tag, Palette, CheckCircle2, User, Phone, MapPin, Building, FileText, Info } from 'lucide-react';
+import { X, MessageSquare, Send, Tag, Palette, CheckCircle2, User, Phone, MapPin, Building, FileText, Info, ChevronLeft, ChevronRight, Images } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
 import { buildWhatsAppLink } from '../utils/whatsappHelper';
 
 export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
+  const imagesList = Array.isArray(cap?.imagenes) && cap.imagenes.length > 0 
+    ? cap.imagenes 
+    : (cap?.imagen_url ? [cap.imagen_url] : []);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(cap?.activeImageIndex || 0);
+
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
@@ -13,6 +18,8 @@ export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
   });
 
   if (!cap) return null;
+
+  const currentPhoto = imagesList[selectedPhotoIndex] || cap.imagen_url;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,24 +47,76 @@ export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2">
           
-          {/* Lado izquierdo: Foto limpia desplegada y especificaciones */}
+          {/* Lado izquierdo: Foto limpia desplegada, galería y especificaciones */}
           <div className="relative bg-slate-950 p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
-            <div 
-              className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#0a0c12] mb-4 border border-slate-800 flex items-center justify-center cursor-pointer group"
-              onClick={() => onZoomImage && onZoomImage(cap)}
-            >
-              <img
-                src={cap.imagen_url}
-                alt={cap.nombre}
-                className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
-                }}
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400 font-bold text-xs gap-1.5 backdrop-blur-[1px]">
-                <span>🔍 Ampliar Imagen al 100%</span>
+            <div>
+              {/* Imagen Principal */}
+              <div 
+                className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#0a0c12] mb-3 border border-slate-800 flex items-center justify-center cursor-pointer group"
+                onClick={() => onZoomImage && onZoomImage({ ...cap, activeImageIndex: selectedPhotoIndex })}
+              >
+                <img
+                  src={currentPhoto}
+                  alt={cap.nombre}
+                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
+                  }}
+                />
+
+                {/* Flechas anterior / siguiente si tiene más de 1 imagen */}
+                {imagesList.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPhotoIndex(prev => (prev > 0 ? prev - 1 : imagesList.length - 1));
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/80 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 transition-colors shadow-lg z-10"
+                      title="Foto anterior"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPhotoIndex(prev => (prev < imagesList.length - 1 ? prev + 1 : 0));
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/80 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 transition-colors shadow-lg z-10"
+                      title="Foto siguiente"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400 font-bold text-xs gap-1.5 backdrop-blur-[1px]">
+                  <span>🔍 Ampliar Imagen al 100%</span>
+                </div>
               </div>
+
+              {/* Tira de Miniaturas si hay múltiples fotos */}
+              {imagesList.length > 1 && (
+                <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-thin">
+                  {imagesList.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedPhotoIndex(idx)}
+                      className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 bg-slate-900 shrink-0 transition-all ${
+                        idx === selectedPhotoIndex
+                          ? 'border-amber-400 shadow-md shadow-amber-500/20 scale-105'
+                          : 'border-slate-800 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-contain p-1" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-3">

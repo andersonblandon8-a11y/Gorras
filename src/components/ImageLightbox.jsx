@@ -1,15 +1,51 @@
-import React, { useState } from 'react';
-import { X, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Tag } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Tag, ChevronLeft, ChevronRight, Images } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
 import { buildWhatsAppLink } from '../utils/whatsappHelper';
 
 export const ImageLightbox = ({ cap, phone, onClose }) => {
+  const imagesList = Array.isArray(cap?.imagenes) && cap.imagenes.length > 0 
+    ? cap.imagenes 
+    : (cap?.imagen_url ? [cap.imagen_url] : []);
+  const [currentIndex, setCurrentIndex] = useState(cap?.activeImageIndex || 0);
+
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
+  const handleSwitchPhoto = (newIdx) => {
+    setCurrentIndex(newIdx);
+    setZoomLevel(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
+  const handlePrevPhoto = (e) => {
+    e?.stopPropagation();
+    handleSwitchPhoto(currentIndex > 0 ? currentIndex - 1 : imagesList.length - 1);
+  };
+
+  const handleNextPhoto = (e) => {
+    e?.stopPropagation();
+    handleSwitchPhoto(currentIndex < imagesList.length - 1 ? currentIndex + 1 : 0);
+  };
+
+  // Atajos de teclado: Flechas para navegar fotos, Escape para cerrar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (imagesList.length > 1) {
+        if (e.key === 'ArrowLeft') handlePrevPhoto();
+        if (e.key === 'ArrowRight') handleNextPhoto();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentIndex, imagesList.length]);
+
   if (!cap) return null;
+
+  const currentPhoto = imagesList[currentIndex] || cap.imagen_url;
 
   const directWaLink = buildWhatsAppLink(phone, cap);
 
@@ -63,7 +99,14 @@ export const ImageLightbox = ({ cap, phone, onClose }) => {
           </div>
           <div>
             <h3 className="text-white font-bold text-sm sm:text-base font-outfit line-clamp-1">{cap.nombre}</h3>
-            <span className="text-xs text-amber-400 font-mono font-bold">{formatCOP(cap.precio)}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-amber-400 font-mono font-bold">{formatCOP(cap.precio)}</span>
+              {imagesList.length > 1 && (
+                <span className="text-[11px] text-slate-400">
+                  • Foto {currentIndex + 1} de {imagesList.length}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -110,7 +153,7 @@ export const ImageLightbox = ({ cap, phone, onClose }) => {
         </div>
       </div>
 
-      {/* ÁREA PRINCIPAL VISOR DE IMAGEN (ZOOM + PAN) */}
+      {/* ÁREA PRINCIPAL VISOR DE IMAGEN (ZOOM + PAN + NAVEGACIÓN) */}
       <div 
         className={`flex-1 relative overflow-hidden flex items-center justify-center p-4 ${
           zoomLevel > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
@@ -121,6 +164,28 @@ export const ImageLightbox = ({ cap, phone, onClose }) => {
           if (zoomLevel === 1) handleZoomIn();
         }}
       >
+        {/* Flechas flotantes si hay múltiples fotos */}
+        {imagesList.length > 1 && zoomLevel === 1 && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrevPhoto}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-slate-900/80 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 backdrop-blur-md shadow-2xl transition-all"
+              title="Foto anterior (←)"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNextPhoto}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-slate-900/80 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 backdrop-blur-md shadow-2xl transition-all"
+              title="Foto siguiente (→)"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </>
+        )}
+
         <div 
           className="transition-transform duration-200 ease-out max-w-full max-h-full flex items-center justify-center"
           style={{
@@ -129,9 +194,9 @@ export const ImageLightbox = ({ cap, phone, onClose }) => {
           }}
         >
           <img
-            src={cap.imagen_url}
+            src={currentPhoto}
             alt={cap.nombre}
-            className="max-h-[80vh] max-w-[92vw] object-contain rounded-2xl shadow-2xl pointer-events-none"
+            className="max-h-[75vh] max-w-[90vw] object-contain rounded-2xl shadow-2xl pointer-events-none"
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
@@ -141,23 +206,41 @@ export const ImageLightbox = ({ cap, phone, onClose }) => {
 
         {/* Instrucción flotante */}
         {zoomLevel === 1 && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 text-slate-300 text-xs font-semibold px-4 py-2 rounded-full border border-slate-800 backdrop-blur-md shadow-xl pointer-events-none animate-bounce">
-            🔍 Haz clic o usa los botones + / - para ampliar la imagen y ver los detalles
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-slate-900/90 text-slate-300 text-xs font-semibold px-4 py-2 rounded-full border border-slate-800 backdrop-blur-md shadow-xl pointer-events-none">
+            {imagesList.length > 1
+              ? '🔍 Clic para zoom • Usa flechas ← → para cambiar de foto'
+              : '🔍 Haz clic o usa los botones + / - para ampliar la imagen'}
           </div>
         )}
       </div>
 
-      {/* Footer con Botón Pedir por WhatsApp */}
-      <div className="p-4 sm:p-5 border-t border-white/10 bg-slate-950/90 flex flex-col sm:flex-row items-center justify-between gap-4 z-20">
-        <div className="text-xs text-slate-400 text-center sm:text-left">
-          <span className="text-white font-semibold">{cap.nombre}</span> — {cap.color} • {cap.categoria}
+      {/* Footer con Miniaturas y Botón Pedir por WhatsApp */}
+      <div className="p-3 sm:p-4 border-t border-white/10 bg-slate-950/95 flex flex-col sm:flex-row items-center justify-between gap-3 z-20">
+        <div className="flex items-center gap-2 overflow-x-auto max-w-full py-1">
+          {imagesList.length > 1 && imagesList.map((img, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSwitchPhoto(idx)}
+              className={`w-11 h-11 rounded-lg overflow-hidden border-2 bg-slate-900 shrink-0 transition-all ${
+                idx === currentIndex ? 'border-amber-400 scale-105 shadow-md shadow-amber-500/20' : 'border-slate-800 opacity-60 hover:opacity-100'
+              }`}
+            >
+              <img src={img} alt={`Foto ${idx + 1}`} className="w-full h-full object-contain p-0.5" />
+            </button>
+          ))}
+          {imagesList.length <= 1 && (
+            <div className="text-xs text-slate-400">
+              <span className="text-white font-semibold">{cap.nombre}</span> — {cap.color} • {cap.categoria}
+            </div>
+          )}
         </div>
         
         <a
           href={directWaLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full sm:w-auto py-3 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+          className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all shrink-0"
         >
           <MessageSquare className="w-4 h-4 fill-slate-950" />
           <span>Pedir este Modelo por WhatsApp ({formatCOP(cap.precio)})</span>

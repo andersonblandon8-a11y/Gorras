@@ -84,18 +84,27 @@ export const updateSettingsAPI = async (settings) => {
   return await res.json();
 };
 
-// Subir imagen desde archivo local (multipart/form-data)
-export const uploadImagenAPI = async (file) => {
+// Subir una o múltiples imágenes desde archivos locales (multipart/form-data)
+export const uploadImagenesAPI = async (files) => {
   const formData = new FormData();
-  formData.append('imagen', file);
+  if (Array.isArray(files) || files instanceof FileList) {
+    Array.from(files).forEach((f) => formData.append('imagenes', f));
+  } else {
+    formData.append('imagen', files);
+  }
 
   const res = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
     body: formData
   });
-  if (!res.ok) throw new Error('Error al subir la imagen');
-  return await res.json(); // { url: '/uploads/gorra_xxxx.jpg' }
+  if (!res.ok) throw new Error('Error al subir imágenes');
+  const data = await res.json();
+  const urls = data.urls || (data.url ? [data.url] : []);
+  return { urls, url: urls[0] || '' };
 };
+
+// Alias compatible para subir un solo archivo
+export const uploadImagenAPI = uploadImagenesAPI;
 
 // Fallback de respaldo en caso de que se pruebe en un entorno sin puerto 5000 activo
 function getFallbackGorras(filters) {
@@ -109,6 +118,7 @@ function getFallbackGorras(filters) {
       categoria: 'Urbana',
       estilo: 'Streetwear',
       imagen_url: '/uploads/media_1790821218187.jpg',
+      imagenes: ['/uploads/media_1790821218187.jpg'],
       destacada: 1,
       stock: 15
     },
@@ -121,6 +131,7 @@ function getFallbackGorras(filters) {
       categoria: 'MLB',
       estilo: 'Deportivo',
       imagen_url: '/uploads/media_1790821218251.jpg',
+      imagenes: ['/uploads/media_1790821218251.jpg'],
       destacada: 1,
       stock: 20
     },
@@ -133,6 +144,7 @@ function getFallbackGorras(filters) {
       categoria: 'MLB',
       estilo: 'Urbano',
       imagen_url: '/uploads/media_1790821218290.jpg',
+      imagenes: ['/uploads/media_1790821218290.jpg'],
       destacada: 1,
       stock: 12
     },
@@ -145,6 +157,7 @@ function getFallbackGorras(filters) {
       categoria: 'MLB',
       estilo: 'Streetwear',
       imagen_url: '/uploads/media_1790821218329.jpg',
+      imagenes: ['/uploads/media_1790821218329.jpg'],
       destacada: 0,
       stock: 18
     },
@@ -157,6 +170,7 @@ function getFallbackGorras(filters) {
       categoria: 'MLB',
       estilo: 'Deportivo',
       imagen_url: '/uploads/media_1790821218370.jpg',
+      imagenes: ['/uploads/media_1790821218370.jpg'],
       destacada: 1,
       stock: 10
     }

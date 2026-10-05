@@ -25,11 +25,13 @@ export const getGorraById = async (req, res) => {
 
 export const createGorra = async (req, res) => {
   try {
-    const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada, stock } = req.body;
+    const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, imagenes, destacada, stock } = req.body;
     
     if (!nombre || !precio || !color || !categoria || !estilo) {
       return res.status(400).json({ error: 'Campos requeridos faltantes: nombre, precio, color, categoría y estilo son obligatorios.' });
     }
+
+    const imgsList = Array.isArray(imagenes) && imagenes.length > 0 ? imagenes : (imagen_url ? [imagen_url] : []);
 
     const nuevaGorra = await CapModel.create({
       nombre,
@@ -38,7 +40,8 @@ export const createGorra = async (req, res) => {
       color,
       categoria,
       estilo,
-      imagen_url: imagen_url || 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
+      imagen_url: imgsList[0] || imagen_url || 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
+      imagenes: imgsList,
       destacada: destacada ? 1 : 0,
       stock: parseInt(stock, 10) || 1
     });
@@ -53,7 +56,7 @@ export const createGorra = async (req, res) => {
 export const updateGorra = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada, stock } = req.body;
+    const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, imagenes, destacada, stock } = req.body;
 
     const gorraExistente = await CapModel.getById(id);
     if (!gorraExistente) {
@@ -67,7 +70,8 @@ export const updateGorra = async (req, res) => {
       color: color !== undefined ? color : gorraExistente.color,
       categoria: categoria !== undefined ? categoria : gorraExistente.categoria,
       estilo: estilo !== undefined ? estilo : gorraExistente.estilo,
-      imagen_url: imagen_url !== undefined ? imagen_url : gorraExistente.imagen_url,
+      imagen_url: imagen_url !== undefined ? imagen_url : (Array.isArray(imagenes) && imagenes[0] ? imagenes[0] : gorraExistente.imagen_url),
+      imagenes: imagenes !== undefined ? imagenes : gorraExistente.imagenes,
       destacada: destacada !== undefined ? (destacada ? 1 : 0) : gorraExistente.destacada,
       stock: stock !== undefined ? parseInt(stock, 10) : gorraExistente.stock
     });

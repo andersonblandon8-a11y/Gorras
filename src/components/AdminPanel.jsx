@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle, Star, Images } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
-import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenAPI } from '../services/api';
+import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenesAPI } from '../services/api';
 
 const PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
@@ -28,6 +28,7 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
     categoria: 'Snapback',
     estilo: 'Urbano',
     imagen_url: '',
+    imagenes: [],
     destacada: false,
     stock: 10
   });
@@ -35,8 +36,8 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
   // Estado para subida de imagen
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [imagePreview, setImagePreview] = useState('');
   const [useUrlInput, setUseUrlInput] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
   const [uploadingEditImage, setUploadingEditImage] = useState(false);
   const fileInputRef = useRef(null);
   const editFileInputRef = useRef(null);
@@ -46,38 +47,118 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Subir imagen por archivo
-  const handleUploadFile = async (file) => {
-    if (!file) return;
+  // Subir múltiples imágenes para nueva gorra
+  const handleUploadFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
     setUploadError('');
     setUploadingImage(true);
-    // Preview local inmediato
-    const localPreview = URL.createObjectURL(file);
-    setImagePreview(localPreview);
     try {
-      const result = await uploadImagenAPI(file);
-      setNewCap(prev => ({ ...prev, imagen_url: result.url }));
-      setImagePreview(result.url);
+      const result = await uploadImagenesAPI(fileList);
+      setNewCap(prev => {
+        const updated = [...(prev.imagenes || []), ...result.urls];
+        return {
+          ...prev,
+          imagenes: updated,
+          imagen_url: updated[0] || ''
+        };
+      });
     } catch (err) {
-      setUploadError('Error al subir la imagen: ' + err.message);
-      setImagePreview('');
+      setUploadError('Error al subir imágenes: ' + err.message);
     } finally {
       setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  // Subir imagen por archivo en modo edición
-  const handleEditUploadFile = async (file) => {
-    if (!file) return;
+  // Quitar una foto de la nueva gorra
+  const handleRemoveNewCapImage = (indexToRemove) => {
+    setNewCap(prev => {
+      const updated = prev.imagenes.filter((_, idx) => idx !== indexToRemove);
+      return {
+        ...prev,
+        imagenes: updated,
+        imagen_url: updated[0] || ''
+      };
+    });
+  };
+
+  // Fijar una foto como portada (principal)
+  const handleSetPrimaryNewCapImage = (indexToPrimary) => {
+    setNewCap(prev => {
+      const selected = prev.imagenes[indexToPrimary];
+      const rest = prev.imagenes.filter((_, idx) => idx !== indexToPrimary);
+      const reordered = [selected, ...rest];
+      return {
+        ...prev,
+        imagenes: reordered,
+        imagen_url: selected
+      };
+    });
+  };
+
+  // Agregar URL manual a la lista de fotos
+  const handleAddCustomUrl = (urlToAdd) => {
+    if (!urlToAdd || !urlToAdd.trim()) return;
+    setNewCap(prev => {
+      const updated = [...(prev.imagenes || []), urlToAdd.trim()];
+      return {
+        ...prev,
+        imagenes: updated,
+        imagen_url: updated[0] || ''
+      };
+    });
+    setCustomUrl('');
+  };
+
+  // Subir imágenes para gorra en modo edición
+  const handleEditUploadFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
     setUploadingEditImage(true);
     try {
-      const result = await uploadImagenAPI(file);
-      setEditForm(prev => ({ ...prev, imagen_url: result.url }));
+      const result = await uploadImagenesAPI(fileList);
+      setEditForm(prev => {
+        const currentImgs = Array.isArray(prev.imagenes) ? prev.imagenes : (prev.imagen_url ? [prev.imagen_url] : []);
+        const updated = [...currentImgs, ...result.urls];
+        return {
+          ...prev,
+          imagenes: updated,
+          imagen_url: updated[0] || ''
+        };
+      });
     } catch (err) {
-      alert('Error al subir imagen: ' + err.message);
+      alert('Error al subir imágenes: ' + err.message);
     } finally {
       setUploadingEditImage(false);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
     }
+  };
+
+  // Quitar foto en modo edición
+  const handleRemoveEditImage = (indexToRemove) => {
+    setEditForm(prev => {
+      const currentImgs = Array.isArray(prev.imagenes) ? prev.imagenes : (prev.imagen_url ? [prev.imagen_url] : []);
+      const updated = currentImgs.filter((_, idx) => idx !== indexToRemove);
+      return {
+        ...prev,
+        imagenes: updated,
+        imagen_url: updated[0] || ''
+      };
+    });
+  };
+
+  // Fijar foto portada en modo edición
+  const handleSetPrimaryEditImage = (indexToPrimary) => {
+    setEditForm(prev => {
+      const currentImgs = Array.isArray(prev.imagenes) ? prev.imagenes : (prev.imagen_url ? [prev.imagen_url] : []);
+      const selected = currentImgs[indexToPrimary];
+      const rest = currentImgs.filter((_, idx) => idx !== indexToPrimary);
+      const reordered = [selected, ...rest];
+      return {
+        ...prev,
+        imagenes: reordered,
+        imagen_url: selected
+      };
+    });
   };
 
   // 1. Manejo de Crear Gorra
@@ -87,8 +168,9 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
       alert('Por favor ingresa el nombre y precio de la gorra.');
       return;
     }
-    if (!newCap.imagen_url) {
-      alert('Por favor sube una imagen para la gorra.');
+    const hasImages = (newCap.imagenes && newCap.imagenes.length > 0) || newCap.imagen_url;
+    if (!hasImages) {
+      alert('Por favor sube al menos una imagen para la gorra.');
       return;
     }
 
@@ -103,10 +185,10 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
         categoria: 'Snapback',
         estilo: 'Urbano',
         imagen_url: '',
+        imagenes: [],
         destacada: false,
         stock: 10
       });
-      setImagePreview('');
       onRefreshData();
       setTimeout(() => {
         setSuccessMsg('');
@@ -120,7 +202,10 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
   // 2. Iniciar edición
   const handleStartEdit = (cap) => {
     setEditingId(cap.id);
-    setEditForm({ ...cap });
+    const capImages = Array.isArray(cap.imagenes) && cap.imagenes.length > 0
+      ? cap.imagenes
+      : (cap.imagen_url ? [cap.imagen_url] : []);
+    setEditForm({ ...cap, imagenes: capImages, imagen_url: capImages[0] || '' });
   };
 
   // Guardar edición
@@ -306,39 +391,79 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
                             </div>
                           </div>
 
-                          {/* Foto de la gorra en edición */}
-                          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <img
-                                src={editForm.imagen_url}
-                                alt="Preview"
-                                className="w-12 h-12 object-contain rounded-lg bg-slate-900 border border-slate-700 shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Foto Actual</span>
-                                <span className="text-[11px] text-slate-300 truncate max-w-[220px] block">{editForm.imagen_url}</span>
+                          {/* Fotos de la gorra en edición (Galería múltiple) */}
+                          <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-slate-400 uppercase font-semibold flex items-center gap-1.5">
+                                <Images className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Fotos del Producto ({(editForm.imagenes || []).length})</span>
+                              </span>
+
+                              <div>
+                                <input
+                                  ref={editFileInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files?.length) handleEditUploadFiles(e.target.files);
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={uploadingEditImage}
+                                  onClick={() => editFileInputRef.current?.click()}
+                                  className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                >
+                                  <UploadCloud className="w-3.5 h-3.5" />
+                                  <span>{uploadingEditImage ? 'Subiendo fotos...' : '+ Añadir más fotos'}</span>
+                                </button>
                               </div>
                             </div>
-                            <div>
-                              <input
-                                ref={editFileInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleEditUploadFile(file);
-                                }}
-                              />
-                              <button
-                                type="button"
-                                disabled={uploadingEditImage}
-                                onClick={() => editFileInputRef.current?.click()}
-                                className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                              >
-                                <UploadCloud className="w-3.5 h-3.5" />
-                                <span>{uploadingEditImage ? 'Subiendo...' : 'Cambiar imagen por archivo'}</span>
-                              </button>
+
+                            {/* Grid de miniaturas en edición */}
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                              {(editForm.imagenes || [editForm.imagen_url]).filter(Boolean).map((imgUrl, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`relative group rounded-xl overflow-hidden border p-1.5 bg-slate-900 ${
+                                    idx === 0 ? 'border-amber-500 ring-1 ring-amber-500/40' : 'border-slate-800'
+                                  }`}
+                                >
+                                  <img
+                                    src={imgUrl}
+                                    alt={`Foto ${idx + 1}`}
+                                    className="w-full h-20 object-contain rounded-lg bg-slate-950"
+                                  />
+
+                                  {/* Badge o botón Portada */}
+                                  <div className="mt-1 flex items-center justify-between gap-1">
+                                    {idx === 0 ? (
+                                      <span className="text-[9px] font-bold bg-amber-500 text-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                        <Star className="w-2.5 h-2.5 fill-black" /> Portada
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSetPrimaryEditImage(idx)}
+                                        className="text-[9px] text-slate-400 hover:text-amber-400 underline truncate"
+                                      >
+                                        Hacer Portada
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveEditImage(idx)}
+                                      className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-500/20"
+                                      title="Eliminar esta foto"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
 
@@ -500,126 +625,172 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
               />
             </div>
 
-            {/* ── SUBIDA DE IMAGEN POR ARCHIVO O ENLACE ── */}
+            {/* ── SUBIDA DE MÚLTIPLES IMÁGENES POR ARCHIVO O ENLACE ── */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-semibold text-slate-300 uppercase">
-                  Imagen de la Gorra *
+                <label className="text-xs font-semibold text-slate-300 uppercase flex items-center gap-1.5">
+                  <Images className="w-4 h-4 text-amber-400" />
+                  <span>Fotos de la Gorra {(newCap.imagenes || []).length > 0 && `(${(newCap.imagenes || []).length})`} *</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setUseUrlInput(!useUrlInput)}
                   className="text-[11px] text-amber-400 hover:text-amber-300 underline"
                 >
-                  {useUrlInput ? '📁 Subir archivo desde tu dispositivo' : '🔗 O ingresar enlace URL'}
+                  {useUrlInput ? '📁 Subir archivos desde tu PC' : '🔗 O ingresar por enlace URL'}
                 </button>
               </div>
 
               {!useUrlInput ? (
-                /* Zona Drag & Drop / Click para archivo */
-                <div
-                  className={`relative w-full border-2 border-dashed rounded-2xl transition-all cursor-pointer ${
-                    uploadingImage
-                      ? 'border-amber-500/60 bg-amber-500/5'
-                      : imagePreview
-                      ? 'border-emerald-500/50 bg-emerald-500/5'
-                      : 'border-slate-700 hover:border-amber-500/50 bg-slate-900/60'
-                  }`}
-                  onClick={() => !uploadingImage && fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const file = e.dataTransfer.files?.[0];
-                    if (file) handleUploadFile(file);
-                  }}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUploadFile(file);
-                    }}
-                  />
-
-                  {imagePreview ? (
-                    /* Preview de imagen cargada */
-                    <div className="p-3 flex items-center gap-4">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-24 h-20 object-contain rounded-xl bg-slate-950 border border-slate-700"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 mb-1">
-                          <Check className="w-3.5 h-3.5" /> Imagen cargada por archivo correctamente
-                        </p>
-                        <p className="text-[11px] text-slate-400 truncate">{newCap.imagen_url}</p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setImagePreview('');
-                            setNewCap(prev => ({ ...prev, imagen_url: '' }));
-                            if (fileInputRef.current) fileInputRef.current.value = '';
-                          }}
-                          className="mt-1.5 text-[11px] text-rose-400 hover:text-rose-300 underline"
+                <div className="space-y-3">
+                  {/* Grid de miniaturas cargadas si ya hay fotos */}
+                  {(newCap.imagenes || []).length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
+                      {(newCap.imagenes || []).map((imgUrl, idx) => (
+                        <div
+                          key={idx}
+                          className={`relative rounded-xl overflow-hidden border p-1.5 bg-slate-900 group ${
+                            idx === 0 ? 'border-amber-500 ring-1 ring-amber-500/40' : 'border-slate-800'
+                          }`}
                         >
-                          Cambiar imagen
-                        </button>
-                      </div>
+                          <img
+                            src={imgUrl}
+                            alt={`Gorra foto ${idx + 1}`}
+                            className="w-full h-24 object-contain rounded-lg bg-slate-950"
+                          />
+
+                          <div className="mt-1 flex items-center justify-between gap-1">
+                            {idx === 0 ? (
+                              <span className="text-[9px] font-bold bg-amber-500 text-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                <Star className="w-2.5 h-2.5 fill-black" /> Portada
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSetPrimaryNewCapImage(idx)}
+                                className="text-[9px] text-slate-400 hover:text-amber-400 underline truncate"
+                              >
+                                Hacer Portada
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveNewCapImage(idx)}
+                              className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-500/20"
+                              title="Eliminar esta foto"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ) : (
-                    /* Estado vacío / subiendo */
-                    <div className="py-8 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                  )}
+
+                  {/* Zona Drag & Drop / Click para subir una o varias fotos */}
+                  <div
+                    className={`relative w-full border-2 border-dashed rounded-2xl transition-all cursor-pointer ${
+                      uploadingImage
+                        ? 'border-amber-500/60 bg-amber-500/5'
+                        : (newCap.imagenes || []).length > 0
+                        ? 'border-slate-700 hover:border-amber-500/50 bg-slate-900/40 py-4'
+                        : 'border-slate-700 hover:border-amber-500/50 bg-slate-900/60 py-8'
+                    }`}
+                    onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const files = e.dataTransfer.files;
+                      if (files && files.length > 0) handleUploadFiles(files);
+                    }}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) handleUploadFiles(files);
+                      }}
+                    />
+
+                    <div className="flex flex-col items-center justify-center gap-1.5 pointer-events-none px-4 text-center">
                       {uploadingImage ? (
                         <>
                           <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                          <p className="text-xs text-amber-400 font-semibold">Subiendo imagen al servidor...</p>
+                          <p className="text-xs text-amber-400 font-semibold">Subiendo fotos al servidor...</p>
                         </>
                       ) : (
                         <>
-                          <UploadCloud className="w-8 h-8 text-amber-400/80" />
-                          <p className="text-xs text-slate-200 font-semibold">Haz clic o arrastra un archivo de imagen aquí</p>
-                          <p className="text-[11px] text-slate-500">JPG, PNG, WEBP, GIF hasta 10 MB</p>
+                          <UploadCloud className="w-7 h-7 text-amber-400/80" />
+                          <p className="text-xs text-slate-200 font-semibold">
+                            {(newCap.imagenes || []).length > 0
+                              ? '+ Clic o arrastra para añadir más fotos a esta gorra'
+                              : 'Haz clic o arrastra 1 o más imágenes aquí (puedes seleccionar varias)'}
+                          </p>
+                          <p className="text-[11px] text-slate-500">JPG, PNG, WEBP, GIF hasta 10 MB cada una</p>
                         </>
                       )}
                     </div>
-                  )}
+                  </div>
                 </div>
               ) : (
                 /* Entrada manual por URL */
-                <div>
-                  <input
-                    type="url"
-                    value={newCap.imagen_url}
-                    onChange={(e) => {
-                      setNewCap({ ...newCap, imagen_url: e.target.value });
-                      setImagePreview(e.target.value);
-                    }}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
-                  <div className="flex items-center gap-2 mt-2">
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/..."
+                      className="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddCustomUrl(customUrl)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl"
+                    >
+                      Añadir Foto
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
                     <span className="text-[11px] text-slate-400">Presets rápidos:</span>
                     <div className="flex gap-1.5">
                       {PRESET_IMAGES.map((imgUrl, idx) => (
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => {
-                            setNewCap({ ...newCap, imagen_url: imgUrl });
-                            setImagePreview(imgUrl);
-                          }}
+                          onClick={() => handleAddCustomUrl(imgUrl)}
                           className="w-6 h-6 rounded-md overflow-hidden border border-slate-700 hover:border-amber-400"
+                          title="Añadir preset"
                         >
                           <img src={imgUrl} className="w-full h-full object-cover" />
                         </button>
                       ))}
                     </div>
                   </div>
+
+                  {/* Lista de fotos añadidas por URL */}
+                  {(newCap.imagenes || []).length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 rounded-2xl bg-slate-950 border border-slate-800">
+                      {(newCap.imagenes || []).map((imgUrl, idx) => (
+                        <div key={idx} className="relative rounded-lg overflow-hidden border border-slate-800 p-1 bg-slate-900">
+                          <img src={imgUrl} alt={`Preset ${idx}`} className="w-full h-20 object-contain rounded" />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNewCapImage(idx)}
+                            className="absolute top-2 right-2 p-1 rounded bg-black/80 text-rose-400"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

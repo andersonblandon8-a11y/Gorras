@@ -42,14 +42,19 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10 MB máximo
 });
 
-// POST /api/upload  →  recibe campo "imagen", guarda y devuelve la URL pública
-router.post('/', upload.single('imagen'), (req, res) => {
-  if (!req.file) {
+// POST /api/upload  →  acepta uno o múltiples archivos de imagen (hasta 15 archivos simultáneos)
+router.post('/', upload.any(), (req, res) => {
+  const files = req.files || (req.file ? [req.file] : []);
+  if (files.length === 0) {
     return res.status(400).json({ error: 'No se recibió ningún archivo de imagen.' });
   }
 
-  const publicUrl = `/uploads/${req.file.filename}`;
-  res.json({ url: publicUrl, filename: req.file.filename });
+  const urls = files.map(f => `/uploads/${f.filename}`);
+  res.json({ 
+    url: urls[0], 
+    urls: urls, 
+    count: urls.length 
+  });
 });
 
 export default router;

@@ -36,11 +36,17 @@ function initTables() {
         categoria TEXT NOT NULL,
         estilo TEXT NOT NULL,
         imagen_url TEXT NOT NULL,
+        imagenes TEXT,
         destacada INTEGER DEFAULT 0,
         stock INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Migración segura si la base de datos ya existía previamente sin la columna 'imagenes'
+    db.run(`ALTER TABLE gorras ADD COLUMN imagenes TEXT`, () => {
+      // Ignorar error si la columna ya existe
+    });
 
     // Tabla de Configuración de la Tienda
     db.run(`

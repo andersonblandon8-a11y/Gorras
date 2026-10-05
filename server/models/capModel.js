@@ -1,5 +1,25 @@
 import db from '../config/db.js';
 
+const parseGorraRow = (row) => {
+  if (!row) return row;
+  let imagenes = [];
+  if (row.imagenes) {
+    try {
+      imagenes = typeof row.imagenes === 'string' ? JSON.parse(row.imagenes) : row.imagenes;
+    } catch {
+      imagenes = [row.imagenes];
+    }
+  }
+  if (!Array.isArray(imagenes) || imagenes.length === 0) {
+    imagenes = row.imagen_url ? [row.imagen_url] : [];
+  }
+  return {
+    ...row,
+    imagenes,
+    imagen_url: imagenes[0] || row.imagen_url || ''
+  };
+};
+
 export const CapModel = {
   // Obtener todas las gorras con filtros opcionales
   getAll: (filters = {}) => {
@@ -42,7 +62,7 @@ export const CapModel = {
 
       db.all(sql, params, (err, rows) => {
         if (err) reject(err);
-        else resolve(rows);
+        else resolve(rows.map(parseGorraRow));
       });
     });
   },
@@ -52,7 +72,7 @@ export const CapModel = {
     return new Promise((resolve, reject) => {
       db.get('SELECT * FROM gorras WHERE id = ?', [id], (err, row) => {
         if (err) reject(err);
-        else resolve(row);
+        else resolve(parseGorraRow(row));
       });
     });
   },
@@ -60,14 +80,18 @@ export const CapModel = {
   // Crear una nueva gorra
   create: (data) => {
     return new Promise((resolve, reject) => {
-      const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada = 0, stock = 1 } = data;
+      const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, imagenes, destacada = 0, stock = 1 } = data;
+      const imgsArray = Array.isArray(imagenes) && imagenes.length > 0 ? imagenes : (imagen_url ? [imagen_url] : []);
+      const primaryImg = imgsArray[0] || imagen_url || '';
+      const imagenesJson = JSON.stringify(imgsArray);
+
       const sql = `
-        INSERT INTO gorras (nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada, stock)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO gorras (nombre, descripcion, precio, color, categoria, estilo, imagen_url, imagenes, destacada, stock)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
-      db.run(sql, [nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada ? 1 : 0, stock], function(err) {
+      db.run(sql, [nombre, descripcion, precio, color, categoria, estilo, primaryImg, imagenesJson, destacada ? 1 : 0, stock], function(err) {
         if (err) reject(err);
-        else resolve({ id: this.lastID, ...data });
+        else resolve({ id: this.lastID, ...data, imagen_url: primaryImg, imagenes: imgsArray });
       });
     });
   },
@@ -75,15 +99,22 @@ export const CapModel = {
   // Actualizar una gorra existente
   update: (id, data) => {
     return new Promise((resolve, reject) => {
-      const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada, stock } = data;
+      const { nombre, descripcion, precio, color, categoria, estilo, imagen_url, imagenes, destacada, stock } = data;
+      const imgsArray = Array.isArray(imagenes) ? imagenes : (imagen_url ? [imagen_url] : undefined);
+      const primaryImg = imgsArray && imgsArray.length > 0 ? imgsArray[0] : imagen_url;
+      const imagenesJson = imgsArray ? JSON.stringify(imgsArray) : null;
+
       const sql = `
         UPDATE gorras
-        SET nombre = ?, descripcion = ?, precio = ?, color = ?, categoria = ?, estilo = ?, imagen_url = ?, destacada = ?, stock = ?
+        SET nombre = ?, descripcion = ?, precio = ?, color = ?, categoria = ?, estilo = ?, 
+            imagen_url = COALESCE(?, imagen_url), 
+            imagenes = COALESCE(?, imagenes), 
+            destacada = ?, stock = ?
         WHERE id = ?
       `;
-      db.run(sql, [nombre, descripcion, precio, color, categoria, estilo, imagen_url, destacada ? 1 : 0, stock, id], function(err) {
+      db.run(sql, [nombre, descripcion, precio, color, categoria, estilo, primaryImg, imagenesJson, destacada ? 1 : 0, stock, id], function(err) {
         if (err) reject(err);
-        else resolve({ id, ...data, changes: this.changes });
+        else resolve({ id, ...data, imagen_url: primaryImg, imagenes: imgsArray, changes: this.changes });
       });
     });
   },

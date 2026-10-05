@@ -9,6 +9,60 @@ export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
     : (cap?.imagen_url ? [cap.imagen_url] : []);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(cap?.activeImageIndex || 0);
 
+  // Sincronizar índice si cambia la gorra seleccionada
+  React.useEffect(() => {
+    setSelectedPhotoIndex(cap?.activeImageIndex || 0);
+  }, [cap]);
+
+  // Soporte para gestos táctiles (Swipe en móvil)
+  const touchStartX = React.useRef(0);
+  const touchStartY = React.useRef(0);
+  const touchMoved = React.useRef(false);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchMoved.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    const diffX = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const diffY = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (diffX > 10 || diffY > 10) {
+      touchMoved.current = true;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const diffX = endX - touchStartX.current;
+    const diffY = endY - touchStartY.current;
+
+    // Detectar swipe horizontal claro (mínimo 35px y más horizontal que vertical)
+    if (Math.abs(diffX) > 35 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX < 0) {
+        // Swipe izquierda -> siguiente imagen
+        handleNextPhoto();
+      } else {
+        // Swipe derecha -> imagen anterior
+        handlePrevPhoto();
+      }
+    }
+  };
+
+  const handlePrevPhoto = (e) => {
+    e?.stopPropagation();
+    if (imagesList.length <= 1) return;
+    setSelectedPhotoIndex((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
+  };
+
+  const handleNextPhoto = (e) => {
+    e?.stopPropagation();
+    if (imagesList.length <= 1) return;
+    setSelectedPhotoIndex((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
+  };
+
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
@@ -34,13 +88,14 @@ export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
   const hasFilledData = formData.nombre.trim() !== '' || formData.telefono.trim() !== '' || formData.direccion.trim() !== '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-3xl bg-[#0e1017] border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-modal my-8">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex justify-center items-start sm:items-center p-2 sm:p-4">
+      <div className="relative w-full max-w-3xl bg-[#0e1017] border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-modal my-2 sm:my-8">
         
-        {/* Botón cerrar */}
+        {/* Botón cerrar siempre visible y accesible en móvil */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700 flex items-center justify-center transition-all"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-900/90 text-slate-300 hover:text-white hover:bg-slate-800 border border-slate-700/80 flex items-center justify-center transition-all shadow-lg active:scale-95"
+          aria-label="Cerrar modal"
         >
           <X className="w-5 h-5" />
         </button>
@@ -48,71 +103,83 @@ export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
         <div className="grid grid-cols-1 md:grid-cols-2">
           
           {/* Lado izquierdo: Foto limpia desplegada, galería y especificaciones */}
-          <div className="relative bg-slate-950 p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
+          <div className="relative bg-slate-950 p-4 sm:p-6 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
             <div>
-              {/* Imagen Principal */}
+              {/* Imagen Principal con soporte Touch Swipe */}
               <div 
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#0a0c12] mb-3 border border-slate-800 flex items-center justify-center cursor-pointer group"
-                onClick={() => onZoomImage && onZoomImage({ ...cap, activeImageIndex: selectedPhotoIndex })}
+                className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#0a0c12] mb-3 border border-slate-800 flex items-center justify-center cursor-pointer select-none group touch-pan-y"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onClick={() => {
+                  if (!touchMoved.current && onZoomImage) {
+                    onZoomImage({ ...cap, activeImageIndex: selectedPhotoIndex });
+                  }
+                }}
               >
                 <img
                   src={currentPhoto}
                   alt={cap.nombre}
-                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300 pointer-events-none"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80';
                   }}
                 />
 
-                {/* Flechas anterior / siguiente si tiene más de 1 imagen */}
+                {/* Badge indicador de foto activa en móvil */}
+                {imagesList.length > 1 && (
+                  <div className="absolute top-2 left-2 z-20 bg-slate-950/80 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 pointer-events-none flex items-center gap-1">
+                    <Images className="w-3 h-3" />
+                    <span>{selectedPhotoIndex + 1} / {imagesList.length}</span>
+                  </div>
+                )}
+
+                {/* Flechas anterior / siguiente visibles tanto en móvil como en escritorio */}
                 {imagesList.length > 1 && (
                   <>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPhotoIndex(prev => (prev > 0 ? prev - 1 : imagesList.length - 1));
-                      }}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/80 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 transition-colors shadow-lg z-10"
+                      onClick={handlePrevPhoto}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-950/85 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 transition-all shadow-lg z-20 active:scale-95"
                       title="Foto anterior"
+                      aria-label="Foto anterior"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-5 h-5" />
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPhotoIndex(prev => (prev < imagesList.length - 1 ? prev + 1 : 0));
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-slate-950/80 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 transition-colors shadow-lg z-10"
+                      onClick={handleNextPhoto}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-950/85 hover:bg-amber-500 hover:text-black text-white flex items-center justify-center border border-slate-700 transition-all shadow-lg z-20 active:scale-95"
                       title="Foto siguiente"
+                      aria-label="Foto siguiente"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-5 h-5" />
                     </button>
                   </>
                 )}
 
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400 font-bold text-xs gap-1.5 backdrop-blur-[1px]">
-                  <span>🔍 Ampliar Imagen al 100%</span>
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex items-center justify-center text-amber-400 font-bold text-xs gap-1.5 backdrop-blur-[1px]">
+                  <span>🔍 Ampliar Imagen</span>
                 </div>
               </div>
 
-              {/* Tira de Miniaturas si hay múltiples fotos */}
+              {/* Tira de Miniaturas interactiva con scroll táctil suave */}
               {imagesList.length > 1 && (
-                <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-thin">
+                <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 scrollbar-thin scroll-smooth">
                   {imagesList.map((img, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => setSelectedPhotoIndex(idx)}
-                      className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 bg-slate-900 shrink-0 transition-all ${
+                      className={`relative w-14 h-14 rounded-xl overflow-hidden border-2 bg-slate-900 shrink-0 transition-all active:scale-95 ${
                         idx === selectedPhotoIndex
-                          ? 'border-amber-400 shadow-md shadow-amber-500/20 scale-105'
+                          ? 'border-amber-400 shadow-md shadow-amber-500/30 scale-105 ring-1 ring-amber-400/50'
                           : 'border-slate-800 opacity-60 hover:opacity-100'
                       }`}
+                      aria-label={`Ver foto ${idx + 1}`}
                     >
-                      <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-contain p-1" />
+                      <img src={img} alt={`Miniatura ${idx + 1}`} className="w-full h-full object-contain p-1 pointer-events-none" />
                     </button>
                   ))}
                 </div>
@@ -153,7 +220,7 @@ export const QuickViewModal = ({ cap, phone, onClose, onZoomImage }) => {
           </div>
 
           {/* Lado derecho: Formulario de Pedido (OPCIONAL) */}
-          <div className="p-6 flex flex-col justify-between space-y-6">
+          <div className="p-4 sm:p-6 flex flex-col justify-between space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-bold text-white font-outfit">Datos para el Envíos</h3>

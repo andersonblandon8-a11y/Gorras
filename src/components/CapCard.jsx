@@ -12,13 +12,52 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
     : (cap.imagen_url ? [cap.imagen_url] : []);
   const currentImage = imagesList[currentImgIndex] || cap.imagen_url;
 
+  // Soporte para gestos táctiles (Swipe en móvil) en la tarjeta
+  const touchStartX = React.useRef(0);
+  const touchStartY = React.useRef(0);
+  const touchMoved = React.useRef(false);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchMoved.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    const diffX = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const diffY = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (diffX > 10 || diffY > 10) {
+      touchMoved.current = true;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const diffX = endX - touchStartX.current;
+    const diffY = endY - touchStartY.current;
+
+    // Detectar swipe horizontal claro (mínimo 30px y más horizontal que vertical)
+    if (Math.abs(diffX) > 30 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (diffX < 0) {
+        // Swipe izquierda -> siguiente imagen
+        handleNextImg();
+      } else {
+        // Swipe derecha -> imagen anterior
+        handlePrevImg();
+      }
+    }
+  };
+
   const handlePrevImg = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation();
+    if (imagesList.length <= 1) return;
     setCurrentImgIndex((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
   };
 
   const handleNextImg = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation();
+    if (imagesList.length <= 1) return;
     setCurrentImgIndex((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
   };
 
@@ -38,7 +77,7 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
         {imagesList.length > 1 && (
           <span className="bg-amber-500/90 backdrop-blur-md text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow flex items-center gap-1">
             <Images className="w-3 h-3 fill-black" />
-            <span>{imagesList.length} fotos</span>
+            <span>{currentImgIndex + 1}/{imagesList.length}</span>
           </span>
         )}
         <span className="bg-slate-950/80 backdrop-blur-md text-slate-300 text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/10">
@@ -46,16 +85,23 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
         </span>
       </div>
 
-      {/* Imagen Limpia de la Gorra */}
+      {/* Imagen Limpia de la Gorra con Swipe en móvil */}
       <div 
-        className="relative aspect-[4/3] w-full overflow-hidden bg-[#0a0c12] cursor-pointer flex items-center justify-center border-b border-slate-800/60" 
-        onClick={() => onSelectCap({ ...cap, activeImageIndex: currentImgIndex })}
+        className="relative aspect-[4/3] w-full overflow-hidden bg-[#0a0c12] cursor-pointer flex items-center justify-center border-b border-slate-800/60 select-none touch-pan-y" 
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={() => {
+          if (!touchMoved.current) {
+            onSelectCap({ ...cap, activeImageIndex: currentImgIndex });
+          }
+        }}
       >
         {/* Imagen principal NÍTIDA */}
         <img
           src={currentImage}
           alt={cap.nombre}
-          className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out z-10"
+          className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out z-10 pointer-events-none"
           loading="lazy"
           onError={(e) => {
             e.target.onerror = null;
@@ -63,20 +109,24 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
           }}
         />
 
-        {/* Flechas de navegación rápida en tarjeta si tiene más de 1 imagen */}
+        {/* Flechas de navegación rápida visibles en móvil y escritorio si tiene más de 1 imagen */}
         {imagesList.length > 1 && (
           <>
             <button
+              type="button"
               onClick={handlePrevImg}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-slate-950/80 text-white hover:bg-amber-500 hover:text-black flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md border border-slate-700"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-950/85 text-white hover:bg-amber-500 hover:text-black flex items-center justify-center transition-all opacity-85 sm:opacity-0 sm:group-hover:opacity-100 shadow-md border border-slate-700 active:scale-95"
               title="Foto anterior"
+              aria-label="Foto anterior"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
+              type="button"
               onClick={handleNextImg}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-slate-950/80 text-white hover:bg-amber-500 hover:text-black flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md border border-slate-700"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-950/85 text-white hover:bg-amber-500 hover:text-black flex items-center justify-center transition-all opacity-85 sm:opacity-0 sm:group-hover:opacity-100 shadow-md border border-slate-700 active:scale-95"
               title="Foto siguiente"
+              aria-label="Foto siguiente"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -86,8 +136,8 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
               {imagesList.map((_, dotIdx) => (
                 <span
                   key={dotIdx}
-                  className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    dotIdx === currentImgIndex ? 'bg-amber-400 w-3.5' : 'bg-white/40'
+                  className={`h-1.5 rounded-full transition-all ${
+                    dotIdx === currentImgIndex ? 'bg-amber-400 w-3.5' : 'bg-white/40 w-1.5'
                   }`}
                 />
               ))}
@@ -95,14 +145,14 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
           </>
         )}
 
-        {/* Hover overlay con botones: Ampliar Foto y Hacer Pedido */}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex flex-col sm:flex-row items-center justify-center gap-2.5 z-10 p-4">
+        {/* Hover overlay con botones para escritorio */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex flex-row items-center justify-center gap-2.5 z-10 p-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onZoomImage({ ...cap, activeImageIndex: currentImgIndex });
             }}
-            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/40 shadow-xl transition-transform hover:scale-105"
+            className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-amber-400 font-bold text-xs flex items-center justify-center gap-1.5 border border-amber-500/40 shadow-xl transition-transform hover:scale-105"
           >
             <Eye className="w-4 h-4 text-amber-400" />
             <span>🔍 Ampliar Detalle</span>
@@ -113,7 +163,7 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
               e.stopPropagation();
               onSelectCap({ ...cap, activeImageIndex: currentImgIndex });
             }}
-            className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xl transition-transform hover:scale-105"
+            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xl transition-transform hover:scale-105"
           >
             <span>Ver Formulario</span>
           </button>
@@ -121,7 +171,7 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
       </div>
 
       {/* Contenido de la tarjeta */}
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-4">
         <div>
           {/* Categoría & Estilo */}
           <div className="flex items-center gap-2 text-[11px] text-amber-400 font-medium mb-1.5">
@@ -160,7 +210,7 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
               href={directWaLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center"
+              className="py-2.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center active:scale-95"
               title="Pedir directamente a WhatsApp sin llenar formulario"
             >
               <MessageSquare className="w-3.5 h-3.5 fill-emerald-400/20" />
@@ -169,8 +219,8 @@ export const CapCard = ({ cap, phone, onSelectCap, onZoomImage }) => {
 
             {/* 2. Formulario opcional / Ver detalle */}
             <button
-              onClick={() => onSelectCap(cap)}
-              className="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-amber-500/10 transition-all text-center"
+              onClick={() => onSelectCap({ ...cap, activeImageIndex: currentImgIndex })}
+              className="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-amber-500/10 transition-all text-center active:scale-95"
             >
               <span>Hacer Pedido</span>
             </button>

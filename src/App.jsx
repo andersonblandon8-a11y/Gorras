@@ -167,6 +167,7 @@ export function App() {
       {/* 4. Modal Ver Detalle & Formulario Opcional para WhatsApp */}
       {selectedCapModal && (
         <QuickViewModal
+          key={`quick-${selectedCapModal.id}-${selectedCapModal.activeImageIndex || 0}`}
           cap={selectedCapModal}
           phone={phone}
           onClose={() => setSelectedCapModal(null)}
@@ -180,6 +181,7 @@ export function App() {
       {/* 5. Lightbox de imagen ampliada con zoom */}
       {zoomedCap && (
         <ImageLightbox
+          key={`zoom-${zoomedCap.id}-${zoomedCap.activeImageIndex || 0}`}
           cap={zoomedCap}
           phone={phone}
           onClose={() => setZoomedCap(null)}

@@ -119,6 +119,16 @@ export const CapModel = {
     });
   },
 
+  // Eliminar una gorra por ID
+  delete: (id) => {
+    return new Promise((resolve, reject) => {
+      db.run('DELETE FROM gorras WHERE id = ?', [id], function(err) {
+        if (err) reject(err);
+        else resolve({ id, changes: this.changes });
+      });
+    });
+  },
+
   // Eliminar todas las gorras (para limpieza o restauración total)
   clearAll: () => {
     return new Promise((resolve, reject) => {

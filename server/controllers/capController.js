@@ -113,13 +113,19 @@ export const purgeDemo = async (req, res) => {
       'Gorra Luxury Edition Gold Stealth',
       'Gorra Vintage Crimson Red Classic',
       'Gorra Sports Speed Blue Navy',
-      // variantes sin prefijo "Gorra "
+      // variantes sin prefijo
       'Snapback Dark Crown Black',
       'Trucker Cyber Neon Emerald',
       'Minimalist Dad Hat White Sand',
       'Luxury Edition Gold Stealth',
       'Vintage Crimson Red Classic',
-      'Sports Speed Blue Navy'
+      'Sports Speed Blue Navy',
+      // Semillas iniciales alternativas
+      'Gorra Adidas Originals 3D Embroidered',
+      'Gorra Chicago White Sox MLB Edition',
+      'Gorra Pittsburgh Pirates Logo "P"',
+      'Gorra San Francisco Giants "SF"',
+      'Gorra Oakland Athletics "A\'s"'
     ];
 
     const db = (await import('../config/db.js')).default;

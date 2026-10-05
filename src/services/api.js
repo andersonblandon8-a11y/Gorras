@@ -229,49 +229,101 @@ export const updateSettingsAPI = async (settings) => {
   return await res.json();
 };
 
-// 7. SUBIR IMÁGENES (Soporta Base64 persistente en Supabase o Storage bucket)
+// Función auxiliar para comprimir fotos pesadas del celular a un tamaño óptimo web (máx 1200px, 80% calidad)
+const compressImage = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target.result;
+      img.onload = () => {
+        const MAX_WIDTH = 1000;
+        const MAX_HEIGHT = 1000;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convertir a JPEG optimizado ligero (~100-200 KB)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
+        resolve(compressedBase64);
+      };
+      img.onerror = () => resolve(e.target.result);
+    };
+    reader.onerror = () => resolve('');
+  });
+};
+
+// Convierte base64 a Blob para subir a Supabase Storage
+const base64ToBlob = (base64, mimeType = 'image/jpeg') => {
+  const byteString = atob(base64.split(',')[1]);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+  return new Blob([ab], { type: mimeType });
+};
+
+// 7. SUBIR IMÁGENES → Supabase Storage (URL real del CDN, NO base64 en DB)
 export const uploadImagenesAPI = async (files) => {
   const fileArray = Array.isArray(files) || files instanceof FileList ? Array.from(files) : [files];
+  const urls = [];
 
-  // Opcion 1: Subir a Supabase Storage bucket 'gorras' si existe
-  if (isSupabaseConfigured && supabase.storage) {
-    const urls = [];
-    for (const f of fileArray) {
-      const ext = f.name.split('.').pop() || 'jpg';
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
-      const { data, error } = await supabase.storage.from('gorras').upload(fileName, f);
-      
-      if (!error && data) {
-        const { data: publicUrlData } = supabase.storage.from('gorras').getPublicUrl(fileName);
-        if (publicUrlData?.publicUrl) {
-          urls.push(publicUrlData.publicUrl);
-          continue;
+  for (const f of fileArray) {
+    try {
+      // Paso 1: Comprimir la imagen
+      const compressed = await compressImage(f);
+      if (!compressed) continue;
+
+      // Paso 2: Subir al bucket de Supabase Storage
+      if (isSupabaseConfigured) {
+        const blob = base64ToBlob(compressed, 'image/jpeg');
+        const fileName = `gorras/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from('gorras-imagenes')
+          .upload(fileName, blob, {
+            contentType: 'image/jpeg',
+            upsert: false
+          });
+
+        if (!storageError && storageData) {
+          // Paso 3: Obtener URL pública permanente del CDN de Supabase
+          const { data: urlData } = supabase.storage
+            .from('gorras-imagenes')
+            .getPublicUrl(storageData.path);
+
+          if (urlData?.publicUrl) {
+            urls.push(urlData.publicUrl);
+            continue; // ✅ Imagen subida exitosamente al Storage
+          }
         }
+        console.warn('Fallo al subir a Storage, usando base64 como fallback:', storageError?.message);
       }
 
-      // Si no hay bucket creado en Supabase, convertir a Data URL (Base64) para guardarse 100% permanente en la base de datos
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(f);
-      });
-      urls.push(base64);
+      // Fallback: base64 si Storage no está disponible
+      urls.push(compressed);
+    } catch (err) {
+      console.warn('Error procesando imagen:', err);
     }
-    return { urls, url: urls[0] || '' };
   }
 
-  // Opcion 2: Subida por servidor backend express
-  const formData = new FormData();
-  fileArray.forEach((f) => formData.append('imagenes', f));
-
-  const res = await fetch(`${API_BASE_URL}/upload`, {
-    method: 'POST',
-    body: formData
-  });
-  if (!res.ok) throw new Error('Error al subir imágenes');
-  const data = await res.json();
-  const urls = data.urls || (data.url ? [data.url] : []);
   return { urls, url: urls[0] || '' };
 };
 

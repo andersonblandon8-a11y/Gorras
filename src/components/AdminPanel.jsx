@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle, Star, Images, Download, RefreshCw, ShieldCheck } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Save, Phone, Image, Package, Check, Lock, UploadCloud, AlertCircle, Star, Images, Download, RefreshCw, ShieldCheck, Zap } from 'lucide-react';
 import { formatCOP } from '../utils/currencyFormatter';
 import { createGorraAPI, updateGorraAPI, deleteGorraAPI, updateSettingsAPI, uploadImagenesAPI, exportBackupAPI, importBackupAPI, purgeDemoAPI } from '../services/api';
+import { migrateBase64ImagesToStorage } from '../utils/migrateImages';
 
 const PRESET_IMAGES = [
   'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
@@ -52,6 +53,11 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
   const [backupError, setBackupError] = useState('');
   const [backupSuccess, setBackupSuccess] = useState('');
   const importFileRef = useRef(null);
+
+  // Estado para migración de imágenes
+  const [migrating, setMigrating] = useState(false);
+  const [migrateProgress, setMigrateProgress] = useState(0);
+  const [migrateMsg, setMigrateMsg] = useState('');
 
   // Subir múltiples imágenes para nueva gorra
   const handleUploadFiles = async (fileList) => {
@@ -971,6 +977,57 @@ export const AdminPanel = ({ gorras, phone, onClose, onRefreshData }) => {
               >
                 {backupLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
                 <span>{backupLoading ? 'Importando...' : 'Seleccionar Archivo de Respaldo'}</span>
+              </button>
+            </div>
+
+            {/* Migrar imágenes base64 a Supabase Storage */}
+            <div className="rounded-2xl bg-blue-950/30 border border-blue-800/40 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-blue-400" />
+                <h3 className="text-sm font-bold text-white">⚡ Migrar imágenes al Storage (CDN)</h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                Convierte las fotos antiguas (base64 pesadas) al <span className="text-blue-300 font-semibold">Supabase Storage CDN</span> para que carguen instantáneamente. Solo necesitas hacerlo una vez.
+              </p>
+              {migrateMsg && (
+                <div className={`text-xs px-3 py-2 rounded-lg font-medium ${
+                  migrateMsg.startsWith('✅') ? 'bg-green-900/40 text-green-300 border border-green-700/40' :
+                  migrateMsg.startsWith('Error') ? 'bg-red-900/40 text-red-300 border border-red-700/40' :
+                  'bg-blue-900/40 text-blue-300 border border-blue-700/40'
+                }`}>{migrateMsg}</div>
+              )}
+              {migrating && (
+                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300"
+                    style={{ width: `${migrateProgress}%` }}
+                  />
+                </div>
+              )}
+              <button
+                disabled={migrating}
+                onClick={async () => {
+                  if (!window.confirm('¿Migrar las imágenes al Storage de Supabase? El proceso puede tardar unos minutos dependiendo de cuántas gorras tengas.')) return;
+                  setMigrating(true);
+                  setMigrateMsg('');
+                  setMigrateProgress(0);
+                  try {
+                    const result = await migrateBase64ImagesToStorage((msg, pct) => {
+                      setMigrateMsg(msg);
+                      setMigrateProgress(pct);
+                    });
+                    setMigrateMsg(`✅ Listo: ${result.migradas} gorras migradas al Storage.${result.errores > 0 ? ` (${result.errores} con error)` : ''}`);
+                    onRefreshData();
+                  } catch (err) {
+                    setMigrateMsg('Error: ' + err.message);
+                  } finally {
+                    setMigrating(false);
+                  }
+                }}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-700 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-2 transition-colors shadow-lg shadow-blue-500/20"
+              >
+                {migrating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                <span>{migrating ? 'Migrando imágenes...' : 'Migrar Imágenes al CDN'}</span>
               </button>
             </div>
 
